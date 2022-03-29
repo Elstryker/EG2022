@@ -1,0 +1,6 @@
+O que falta:
+-   lógica de variaveis em boolexp
+-   Verificação de erros e warnings
+-   Contar ifs e essa treta
+-   Modificar gramática de modo a que deixe encadear expressões lógicas
+-   Modificar gramática de modo a que deixe atribuições com expressões (ex: a = a + 1)

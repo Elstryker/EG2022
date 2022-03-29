@@ -2,13 +2,13 @@
 grammar = '''
 start: initializations code?
 initializations: initialization SC (initialization SC)*
-initialization: TYPE var (EQUAL value)?
+initialization: TYPE var (EQUAL operand)?
 var: WORD
 code: block+
 block: atribution SC
      | condition
      | cycle
-atribution: var EQUAL value
+atribution: var EQUAL operand
 condition: IF boolexpr OB code CB (ELSE OB code CB)?
 cycle: WHILE boolexpr OB code CB
 boolexpr: OP operand operator operand CP

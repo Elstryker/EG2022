@@ -8,10 +8,20 @@ from interpreter import MyInterpreter
 phrase = """
 str a = "1";
 int b;
+int c;
 a = 2;
-if(3 > a) {
-    b = "0";
-}"""
+if (a > 2) {
+    c = 4;
+}
+else {
+    c = 2;
+}
+
+while(a >= 5) {
+    c = 5;
+    a = 1;
+}
+"""
 
 p = Lark(grammar)
 
