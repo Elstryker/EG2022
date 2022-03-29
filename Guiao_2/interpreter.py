@@ -1,12 +1,36 @@
 from lark.visitors import Interpreter
 from lark import Tree,Token
 
+global identLevel
+
+identLevel = 4
+
+def detectWarningsAndErrors(vars : dict):
+    errors = []
+    warnings = []
+
+    for var,(decl,assigned,used) in vars.items():
+        if decl and used and not assigned:
+            errors.append(f'Variable "{var}" attempted to be used but not assigned')
+        elif decl and not assigned:
+            warnings.append(f'Variable "{var}" declared but not assigned')
+        if decl and not used and assigned:
+            warnings.append(f'Variable "{var}" declared but not used')
+        if used and not decl:
+            errors.append(f'Undeclared variable "{var}" attempted to be used')
+        if assigned and not decl:
+            errors.append(f'Undeclared variable "{var}" attempted to be assigned')
+
+    return (warnings, errors)
+
+
 class MyInterpreter (Interpreter):
 
     def __init__(self):
         self.variables = dict()  # Mapping from varname to a tuple -> (Declared,Assigned,Used)
-        self.warnings = []
-        self.errors = []
+        self.numberIfs = 0
+        self.ifDepth = 0
+        self.maxIfDepth = 0
     
     def start(self,tree):
         r = []
@@ -15,7 +39,16 @@ class MyInterpreter (Interpreter):
 
         print("Variables: ", self.variables)
 
-        return "\n".join(r) 
+        (warnings, errors) = detectWarningsAndErrors(self.variables)
+
+        output = dict()
+        output["code"] = "\n".join(r)
+        output["numberIfs"] = self.numberIfs
+        output["warnings"] = warnings
+        output["errors"] = errors
+        output["maxIfDepth"] = self.maxIfDepth
+
+        return output
     
     def initializations(self,tree):
         r = []
@@ -40,11 +73,6 @@ class MyInterpreter (Interpreter):
 
         if childNum > 2:
             value = self.visit(tree.children[3])
-            if tree.children[3].children[0].data == "var":
-                if value in self.variables:
-                    self.variables[value][2] = True
-                else:
-                    self.variables[value] = [False,False,True]
 
             code += f" = {value}"
 
@@ -72,7 +100,14 @@ class MyInterpreter (Interpreter):
         return str(tree.children[0])
 
     def operand(self,tree):
-        return self.visit(tree.children[0])
+        value = self.visit(tree.children[0])
+        if tree.children[0].data == 'var':
+            if value in self.variables:
+                self.variables[value][2] = True
+            else:
+                self.variables[value] = [False,False,True]
+
+        return value
 
     def atribution(self,tree):
         varName = self.visit(tree.children[0])
@@ -84,39 +119,37 @@ class MyInterpreter (Interpreter):
 
         value = self.visit(tree.children[2])
 
-        if tree.children[2].children[0].data == "var":
-            if value in self.variables:
-                self.variables[value][2] = True
-            else:
-                self.variables[value] = [False,False,True]
-
         return f"{varName} = {value};"
 
 
     def condition(self,tree):
+        self.numberIfs += 1
+        ifDepth = self.ifDepth
+        self.ifDepth += 1
+        self.maxIfDepth = self.maxIfDepth if self.maxIfDepth > ifDepth else ifDepth
+
         boolexpr = self.visit(tree.children[1])
 
         codeTrue = self.visit(tree.children[3])
 
         codeFalse = ''
 
+        ident = ((ifDepth + 1) * identLevel * " ")
+        lastIdent = (ifDepth * identLevel * " ")
+
         if len(tree.children) > 5:
             codeFalse = self.visit(tree.children[7])
 
-        codeString = "if" + boolexpr + """ {
-    """ + "\n    ".join(codeTrue) + """
-}"""
-
+        codeString = "if" + boolexpr + """ { // level """ + str(ifDepth) + "\n" + ident + ("\n"+ident).join(codeTrue) + "\n" + lastIdent + "}"
+        
         if codeFalse != '':
-            codeString += """
-else {
-    """ + "\n    ".join(codeFalse) + """
-}"""
+            codeString += "\n"+ lastIdent + "else { // level " + str(ifDepth) + "\n" + ident + ("\n"+ident).join(codeFalse) + "\n" + lastIdent + "}"
+
+        self.ifDepth = ifDepth
 
         return codeString
 
     def boolexpr(self,tree):
-        # TODO var logic on self.variables
         operand1 = self.visit(tree.children[1])
         operator = self.visit(tree.children[2])
         operand2 = self.visit(tree.children[3])
