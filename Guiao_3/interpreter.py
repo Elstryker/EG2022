@@ -12,6 +12,9 @@ class MyInterpreter (Interpreter):
     def __init__(self):
         self.variables = dict()  # Mapping from varname to a tuple -> (Declared,Assigned,Used)
         self.identLevel = 0
+        self.numberIfs = 0
+        self.ifDepth = 0
+        self.maxIfDepth = 0
     
     def start(self,tree):
         res = []
@@ -121,8 +124,14 @@ class MyInterpreter (Interpreter):
 
     def condition(self,tree):
         identDepth = self.identLevel
+        ifDepth = self.ifDepth
+        self.ifDepth += 1
+        self.maxIfDepth = self.maxIfDepth if self.maxIfDepth > ifDepth else ifDepth
+
 
         self.identLevel += 1
+        self.numberIfs += 1
+
 
         boolexpr = self.visit(tree.children[1])
 
@@ -136,17 +145,18 @@ class MyInterpreter (Interpreter):
         if len(tree.children) > 5:
             codeFalse = self.visit(tree.children[7])
 
-        taggedCode = utils.generatePClassCodeTag(ident + "if" + boolexpr + " {")
+        taggedCode = utils.generatePClassCodeTag(ident + "if" + boolexpr + " { // ifLevel: " + str(ifDepth))
         taggedCode += ''.join(codeTrue)
         taggedCode += utils.generatePClassCodeTag(ident + '}')
         
         # Processamento de else se houver
         if codeFalse != '':
-            taggedCode += utils.generatePClassCodeTag(ident + 'else {')
+            taggedCode += utils.generatePClassCodeTag(ident + 'else { // ifLevel: ' + str(ifDepth))
             taggedCode += ''.join(codeFalse)
             taggedCode += utils.generatePClassCodeTag(ident + '}')
 
         self.identLevel = identDepth
+        self.ifDepth = ifDepth
 
         return taggedCode
 
