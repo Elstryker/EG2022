@@ -1,6 +1,6 @@
 O que falta:
--   Modificar gramática de modo a que deixe encadear expressões lógicas
--   Modificar gramática de modo a que deixe atribuições com expressões (ex: a = a + 1)
+- DONE   Modificar gramática de modo a que deixe encadear expressões lógicas                     DONE
+- DONE   Modificar gramática de modo a que deixe atribuições com expressões (ex: a = a + 1)      DONE
 -   Suportar arrays e tretas do género
 -   Juntar ifs (?) (A ver se dá para fazer isso)
--   Corrigir aninhamento de ciclos e a sua identação
+- DONE  Corrigir aninhamento de ciclos e a sua identação                                         DONE

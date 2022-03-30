@@ -8,25 +8,30 @@ code: block+
 block: atribution SC
      | condition
      | cycle
-atribution: var EQUAL operand
+atribution: var EQUAL operand (operator operand)*
 condition: IF boolexpr OB code CB (ELSE OB code CB)?
 cycle: WHILE boolexpr OB code CB
-boolexpr: OP operand operator operand CP
+boolexpr: OP operand operator operand (AND operand operator operand)* CP
 WHILE: "while"
 IF: "if"
 ELSE: "else"
 OP: "("
 CP: ")"
 operand: value | var
-operator: GT|LT|GET|GLT|EQUALS|DIFF
+operator: GT|LT|GET|GLT|EQUALS|DIFF|PLUS|MINUS|MULT|DIV
 GT: ">"
 LT: "<"
 GET: ">="
 GLT: "<="
 EQUALS: "=="
 DIFF: "!="
+PLUS: "+"
+MINUS: "-"
+MULT:"*"
+DIV:"/"
 OB: "{"
 CB: "}"
+AND : "&&"
 TYPE: "int" 
     | "float" 
     | "str"

@@ -31,6 +31,9 @@ class MyInterpreter (Interpreter):
         self.numberIfs = 0
         self.ifDepth = 0
         self.maxIfDepth = 0
+        self.numberCycles = 0
+        self.cycleDepth = 0
+        self.maxCycleDepth = 0
     
     def start(self,tree):
         r = []
@@ -116,16 +119,31 @@ class MyInterpreter (Interpreter):
         return value
 
     def atribution(self,tree):
-        varName = self.visit(tree.children[0])
-        # Atualização do estado da variável na estrutura de dados
-        if varName in self.variables:
-            self.variables[varName][1] = True
-        else:
-            self.variables[varName] = [False,True,False]
+        ret=""
 
-        value = self.visit(tree.children[2])
+        for i,item in enumerate(tree.children):
+            if i==0:
+                item = self.visit(tree.children[0])
 
-        return f"{varName} = {value};"
+                if item in self.variables:
+                    self.variables[item][1]=True
+                else:
+                    self.variables[item] = [False,True,False]
+                
+                ret += f'{item} '
+
+            elif not ((i % 2)==0):
+                if i>=3:
+                    item = self.visit(tree.children[i])
+                    ret += f'{item} '
+                else:
+                    ret += f'{item} '
+                
+            elif (i % 2) ==0:
+                item = self.visit(tree.children[i])
+                ret += f"{item} "
+        
+        return ret
 
 
     def condition(self,tree):
@@ -159,22 +177,39 @@ class MyInterpreter (Interpreter):
         return codeString
 
     def boolexpr(self,tree):
-        operand1 = self.visit(tree.children[1])
-        operator = self.visit(tree.children[2])
-        operand2 = self.visit(tree.children[3])
+        ret = ""
 
-        return f"({operand1} {operator} {operand2})"
+        for i,item in enumerate(tree.children):
+            if i>0 and not((i%4)==0):
+                item = self.visit(tree.children[i])
+                ret += f"{item} "
+            else:
+                ret += f"{item} "
+
+        return ret
 
     def operator(self,tree):
         return str(tree.children[0])
 
     def cycle(self,tree):
+        self.numberCycles += 1
+
+        cycleDepth = self.cycleDepth
+        self.cycleDepth +=1
+        self.maxCycleDepth = self.maxCycleDepth if self.maxCycleDepth > cycleDepth else cycleDepth
+
+
         boolexp = self.visit(tree.children[1])
 
         code = self.visit(tree.children[3])
 
-        codeString = "while" + boolexp + """ {
-    """ + "\n    ".join(code) + """
-}"""
 
+        # Cálculo da identação para pretty printing
+        ident = ((cycleDepth + 1) * identLevel * " ")
+        lastIdent = ( cycleDepth * identLevel * " ")
+
+
+        codeString = "while" + boolexp + """ { // level """ + str(cycleDepth) + "\n" + ident + ("\n"+ident).join(code) + "\n" + lastIdent + "}"
+
+        self.cycleDepth = cycleDepth
         return codeString
