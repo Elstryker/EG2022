@@ -1,5 +1,6 @@
 from lark.visitors import Interpreter
 from lark import Tree,Token
+import re
 
 global identLevel
 
@@ -52,6 +53,8 @@ class MyInterpreter (Interpreter):
         output["warnings"] = warnings
         output["errors"] = errors
         output["maxIfDepth"] = self.maxIfDepth
+        output["maxCycleDepth"] = self.maxCycleDepth
+        output["numberCycles"]=self.numberCycles
 
         return output
     
@@ -70,20 +73,54 @@ class MyInterpreter (Interpreter):
         type = str(tree.children[0])
 
         varName = self.visit(tree.children[1])
+
+        if(ind:=re.search(r'\[\d+\]',varName)):
+            varName=re.sub(ind.group(0),"",varName)
+            varName=re.sub(r'\[\]',"",varName)
+
         # Atualiza a estrutura com o estado das variáveis
         if varName not in self.variables:
-            self.variables[varName] = [True,False,False]  # Declared, Assigned, Used
+            if ind:
+                index= re.sub(r'\[',"",ind.group(0))
+                index= re.sub(r'\]',"",index)
+                i=0
+                for i in range(int(index)):
+                    self.variables[varName+"["+str(i)+"]"] = [True,False,False]
+            else:
+                self.variables[varName] = [True,False,False]  # Declared, Assigned, Used
         else:
             self.variables[varName][0] = True
 
-        code = f"{type} {varName}"
+        if ind:
+            code = f"{type} {varName}{ind.group(0)}"
+        else:
+            code = f"{type} {varName}"
         # Caso a declaração tenha inicialização, processa-a
         if childNum > 2:
-            value = self.visit(tree.children[3])
+            if varName not in self.variables:
+                if ind:
+                    index= re.sub(r'\[',"",ind.group(0))
+                    index= re.sub(r'\]',"",index)
+                    i=0
+                    while i <= int(index):
+                        self.variables[varName+"["+str(i)+"]"] = [True,False,False]
+                        i+=1
+                else:
+                    self.variables[varName] = [True,False,False]  # Declared, Assigned, Used
+            else:
+                self.variables[varName][0] = True
 
-            code += f" = {value}"
+            if not ind:
+                value = self.visit(tree.children[3])
 
-            self.variables[varName][1] = True
+                code += f" = {value}"
+
+                self.variables[varName][1] = True
+            else:
+                value =self.visit(tree.children[3])
+                code += f" = {value}"
+
+                self.variables[varName+ind.group(0)][1] = True
 
         code += ";"
 
@@ -91,7 +128,10 @@ class MyInterpreter (Interpreter):
 
 
     def var(self,tree):
-        return str(tree.children[0])
+        ret =""
+        for elem in tree.children:
+            ret+=str(elem)
+        return ret
 
     def code(self,tree):
         r = list()
@@ -178,13 +218,18 @@ class MyInterpreter (Interpreter):
 
     def boolexpr(self,tree):
         ret = ""
-
-        for i,item in enumerate(tree.children):
-            if i>0 and not((i%4)==0):
-                item = self.visit(tree.children[i])
-                ret += f"{item} "
-            else:
-                ret += f"{item} "
+        if(len(tree.children)<=3):
+            op = tree.children[0]
+            operand = self.visit(tree.children[1])
+            cp = tree.children[2]
+            ret += f"{op} {operand} {cp}"
+        else:
+            for i,item in enumerate(tree.children):
+                if i>0 and not((i%4)==0):
+                    item = self.visit(tree.children[i])
+                    ret += f"{item} "
+                else:
+                    ret += f"{item} "
 
         return ret
 

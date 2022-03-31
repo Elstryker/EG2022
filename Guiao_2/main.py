@@ -8,12 +8,14 @@ from interpreter import MyInterpreter
 phrase = """
 str a = "1";
 int b;
+int ds[1]=1;
 int c;
 a = 2;
 if (a > 2) {
     if(b == 0 && 10>0 && b>10) {
-        if(c == 0) {
+        if(c) {
             c = 4 + 5 * 10 / 43;
+            c = ds[1];
         }
         else {
             c = 10;
@@ -46,8 +48,10 @@ parse_tree = p.parse(phrase)
 data = MyInterpreter().visit(parse_tree)
 
 print(data["code"])
-print("Nível máximo de aninhamento:",data["maxIfDepth"])
+print("Nível máximo de aninhamento de ifs:",data["maxIfDepth"])
 print("Número de ifs:",data["numberIfs"],"\n")
+print("Nível máximo de aninhamento de ciclos:",data["maxCycleDepth"])
+print("Número de ciclos:",data["numberCycles"],"\n")
 print("Erros:")
 print(data["errors"],"\n")
 print("Warnings")
