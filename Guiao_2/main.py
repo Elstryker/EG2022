@@ -12,24 +12,30 @@ int ds[1]=1;
 int c;
 a = 2;
 if (a > 2) {
-    if(b == 0 && 10>0 && b>10) {
+    if(b == 0 && 10>0 || b>10) {
         if(c) {
             c = 4 + 5 * 10 / 43;
             c = ds[1];
         }
-        else {
-            c = 10;
+        else{
+            c=1;
         }
+        
+    }
+    
+}
+if(teste){
+    if (a > 3) {
+        if(b == 0) {
+            a = 2;
+        }
+    
     }
 }
-else {
-    c = 2;
+else{
+    a=teste;
 }
-if (a > 3) {
-    if(b == 0) {
-        a = 2;
-    }
-}
+
 
 while(a >= 5) {
     while(a>=5){

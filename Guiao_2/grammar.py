@@ -6,12 +6,13 @@ initialization: TYPE var (EQUAL operand)?
 var: WORD (OS INT* CS)?
 code: block+
 block: atribution SC
-     | condition
+     | condition 
      | cycle
 atribution: var EQUAL operand (operator operand)*
-condition: IF boolexpr OB code CB (ELSE OB code CB)?
+condition: IF boolexpr OB code CB (elsecond)?
+elsecond: ELSE OB code CB
 cycle: WHILE boolexpr OB code CB
-boolexpr: OP operand (operator operand (AND operand operator operand)*)? CP
+boolexpr: OP operand (operator operand (LOGIC operand operator operand)*)? CP
 WHILE: "while"
 IF: "if"
 ELSE: "else"
@@ -31,7 +32,8 @@ MULT:"*"
 DIV:"/"
 OB: "{"
 CB: "}"
-AND : "&&"
+LOGIC : "&&"
+     | "||"
 TYPE: "int" 
     | "float" 
     | "str"

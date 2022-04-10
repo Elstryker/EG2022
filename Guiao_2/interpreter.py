@@ -29,6 +29,7 @@ class MyInterpreter (Interpreter):
 
     def __init__(self):
         self.variables = dict()  # Mapping from varname to a tuple -> (Declared,Assigned,Used)
+        self.canReplace = dict()
         self.numberIfs = 0
         self.ifDepth = 0
         self.maxIfDepth = 0
@@ -189,28 +190,54 @@ class MyInterpreter (Interpreter):
     def condition(self,tree):
         self.numberIfs += 1
         # Variável local para guardar o seu nível
+
         ifDepth = self.ifDepth
         self.ifDepth += 1
         self.maxIfDepth = self.maxIfDepth if self.maxIfDepth > ifDepth else ifDepth
 
         boolexpr = self.visit(tree.children[1])
-
         codeTrue = self.visit(tree.children[3])
+        catchBool = re.match(r'(if)(\(.*\)\s*){',codeTrue[0])
+       
 
-        codeFalse = ''
+        if(catchBool and len(tree.children)<6):
+            for k in self.canReplace:
+                if(k in catchBool.group(2)):
+                    boolexpr = re.sub(r"\)","",boolexpr)
+                    sub = re.sub(r"\(","",catchBool.group(2))
+                    sub = re.sub(r"\)","",sub)
+                    boolexpr += "&&" + sub + ")"
+                    codeTrue[0]= codeTrue[0].replace(catchBool.group(0),"")
+                    codeTrue[0]= re.sub(r"^.*[\n]","",codeTrue[0])
+                    idx = codeTrue[0].rfind("}")
+                    if(idx>=0):
+                        codeTrue[0]=codeTrue[0][:idx]
+                    
+
+                    
+                    
+        elseContent = ''
+
+        if len(tree.children)<6:
+            self.canReplace[boolexpr]=[codeTrue]
+        
+        else:
+            elseContent=self.visit(tree.children[5])
+
+       
+        
+            
 
         # Cálculo da identação para pretty printing
         ident = ((ifDepth + 1) * identLevel * " ")
         lastIdent = (ifDepth * identLevel * " ")
 
-        if len(tree.children) > 5:
-            codeFalse = self.visit(tree.children[7])
 
         codeString = "if" + boolexpr + """ { // level """ + str(ifDepth) + "\n" + ident + ("\n"+ident).join(codeTrue) + "\n" + lastIdent + "}"
         
         # Processamento de else se houver
-        if codeFalse != '':
-            codeString += "\n"+ lastIdent + "else { // level " + str(ifDepth) + "\n" + ident + ("\n"+ident).join(codeFalse) + "\n" + lastIdent + "}"
+        if elseContent != '':
+            codeString += "\n"+ lastIdent + "else { // level " + str(ifDepth) + "\n" + ident + ("\n"+ident).join(elseContent) + "\n" + lastIdent + "}"
 
         self.ifDepth = ifDepth
 
@@ -232,6 +259,10 @@ class MyInterpreter (Interpreter):
                     ret += f"{item} "
 
         return ret
+
+
+    def elsecond (self,tree):
+        return self.visit(tree.children[2])
 
     def operator(self,tree):
         return str(tree.children[0])
