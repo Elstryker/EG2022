@@ -6,20 +6,20 @@ declaration: atomic_declaration ";"
            | tuple_declaration ";"
            | dict_declaration ";"
 
-atomic_declaration: TYPE var             -> atomic_declaration
-                  | TYPE var "=" operand -> atomic_declaration_init
+atomic_declaration: TYPE var            
+                  | TYPE var "=" operand
 
-set_declaration: TYPE "set" var          -> set_declaration
-               | TYPE "set" var "=" set  -> set_declaration_init
+set_declaration: TYPE "set" var         
+               | TYPE "set" var "=" set 
 
-list_declaration: TYPE "list" var           -> list_declaration
-                | TYPE "list" var "=" list  -> list_declaration_init
+list_declaration: TYPE "list" var          
+                | TYPE "list" var "=" list 
 
-tuple_declaration: TYPE "tuple" var           -> tuple_declaration
-                 | TYPE "tuple" var "=" tuple -> tuple_declaration_init
+tuple_declaration: TYPE "tuple" var           
+                 | TYPE "tuple" var "=" tuple
 
-dict_declaration: "(" TYPE "," TYPE ")" "dict" var           -> dict_declaration
-                | "(" TYPE "," TYPE ")" "dict" var "=" dict  -> dict_declaration_init
+dict_declaration: "(" TYPE "," TYPE ")" "dict" var         
+                | "(" TYPE "," TYPE ")" "dict" var "=" dict
 
 var: WORD
 
@@ -33,10 +33,10 @@ list: "[" list_contents "]"
 tuple: "(" list_contents ")"
 dict: "{" dict_contents "}"
 
-list_contents: int_contents    -> list_contents_int
-             | float_contents  -> list_contents_float
-             | string_contents -> list_contents_str
-             | bool_contents   -> list_contents_bool
+list_contents: int_contents   
+             | float_contents 
+             | string_contents
+             | bool_contents  
 
 int_contents: INT ("," INT)*
 float_contents: FLOAT ("," FLOAT)*
@@ -45,7 +45,8 @@ bool_contents: BOOL ("," BOOL)*
 
 dict_contents: value ":" value ("," value ":" value)*
 
-operand: value | var
+operand: value  -> operand_value
+       | var    -> operand_var
 
 value: ESCAPED_STRING   -> value_string
      | FLOAT            -> value_float
