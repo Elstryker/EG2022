@@ -133,7 +133,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName} = {operand};"
+            code = f"{type} set {varName} = {operand};"
 
         else:
 
@@ -141,7 +141,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName};"
+            code = f"{type} set {varName};"
 
         return utils.generatePClassCodeTag(code)
 
@@ -190,7 +190,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName} = {operand};"
+            code = f"{type} list {varName} = {operand};"
 
         else:
 
@@ -198,7 +198,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName};"
+            code = f"{type} list {varName};"
 
         return utils.generatePClassCodeTag(code)
 
@@ -247,7 +247,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName} = {operand};"
+            code = f"{type} tuple {varName} = {operand};"
 
         else:
 
@@ -255,7 +255,7 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName};"
+            code = f"{type} tuple {varName};"
 
         return utils.generatePClassCodeTag(code)
 

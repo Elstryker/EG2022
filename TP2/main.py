@@ -12,7 +12,7 @@ str b = a;
 
 int set c;
 str set guy = {"on","tw","th","fo"};
-int tuple a = (1.2,2.,3.);
+float tuple tu = (1.2,2.,3.);
 (str,int) dict di = {3:"ro",6:"he"};
 bool goo = False;
 
