@@ -6,13 +6,6 @@ from grammar.grammar import grammar
 from interpreter.interpreter import MainInterpreter
 
 phrase = """
-str a = "1";
-int b;
-
-int set c;
-int tuple a = (1.2,2.,3.);
-(str,int) dict di = {3:"ro",6:"he"};
-bool goo = False;
 
 a = 1;
 
@@ -38,12 +31,19 @@ if(cond > 0 + 1 && a + 1 == 0 || cond < 2) {
 x=3;
 """
 
-print(grammar)
+#print(grammar)
 
 p = Lark(grammar)
 
 parse_tree = p.parse(phrase)
 
-# data = MainInterpreter().visit(parse_tree)
+data = MainInterpreter().visit(parse_tree)
 
-print(parse_tree.pretty())
+#print(parse_tree.pretty())
+'''
+print("nmrAtrib: ",data["nmrAtrib"])
+print("nmrRead: ",data["nmrRead"])
+print("nmrWrite: ",data["nmrWrite"])
+print("nmrCond: ",data["nmrCond"])
+print("nmrCycle: ",data["nmrCycle"])
+'''
