@@ -1,6 +1,5 @@
 from lark.visitors import Interpreter
 from lark import Tree,Token
-import utils
 import re
 import interpreter.utils as utils
 
@@ -26,11 +25,12 @@ class MainInterpreter (Interpreter):
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
         res = self.visit_children(tree)
-        utils.generateHTML(''.join(res))
+        print(res[0])
+        utils.generateHTML(''.join(res[0]))
 
         output = dict()
         # Juntar o código dos vários blocos
-        output["html"] = ''.join(res)
+        output["html"] = ''.join(res[0])
         output["vars"] = self.variables
         output["warnings"] = self.warnings
         output["errors"] = self.errors
@@ -42,7 +42,7 @@ class MainInterpreter (Interpreter):
         return r
 
     def grammar__declarations__atomic_declaration(self,tree):
-        print("atomic_decl_init")
+        #print("atomic_decl_init")
         errors = []
         type = str(tree.children[0])
         varName = self.visit(tree.children[1])
@@ -96,7 +96,7 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__set_declaration(self,tree):
-        print("set_declaration")
+        #print("set_declaration")
         errors = []
         type = str(tree.children[0])
         varName = self.visit(tree.children[1])
@@ -153,7 +153,7 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__list_declaration(self,tree):
-        print("list_declaration")
+        #print("list_declaration")
         errors = []
         type = str(tree.children[0])
         varName = self.visit(tree.children[1])
@@ -210,7 +210,7 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__tuple_declaration(self,tree):
-        print("tuple_declaration")
+        #print("tuple_declaration")
         errors = []
         type = str(tree.children[0])
         varName = self.visit(tree.children[1])
@@ -267,35 +267,35 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__dict_declaration(self,tree): #TODO
-        print("dict_declaration")
+        #print("dict_declaration")
         return self.visit_children(tree)
 
     def grammar__declarations__var(self,tree):
-        print("var")
+        #print("var")
         return str(tree.children[0])
 
     def grammar__declarations__set(self,tree):
-        print("set")
+        #print("set")
         return self.visit(tree.children[0])
 
     def grammar__declarations__list(self,tree):
-        print("list")
+        #print("list")
         return self.visit(tree.children[0])
 
     def grammar__declarations__tuple(self,tree):
-        print("tuple")
+        #print("tuple")
         return self.visit(tree.children[0])
 
     def grammar__declarations__dict(self,tree):
-        print("dict")
+        #print("dict")
         return self.visit(tree.children[0])
 
     def grammar__declarations__list_contents(self,tree):
-        print("list_contents")
+        #print("list_contents")
         return self.visit(tree.children[0])
 
     def grammar__declarations__int_contents(self,tree):
-        print("int_contents")
+        #print("int_contents")
         self.valueDataType = 'int'
         self.valueSize = len(tree.children)
         elemList = []
@@ -304,7 +304,7 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__float_contents(self,tree):
-        print("float_contents")
+        #print("float_contents")
         self.valueDataType = 'float'
         self.valueSize = len(tree.children)
         elemList = []
@@ -313,7 +313,7 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__string_contents(self,tree):
-        print("string_contents")
+        #print("string_contents")
         self.valueDataType = 'str'
         self.valueSize = len(tree.children)
         elemList = []
@@ -322,7 +322,7 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__bool_contents(self,tree):
-        print("bool_contents")
+        #print("bool_contents")
         self.valueDataType = 'bool'
         self.valueSize = len(tree.children)
         elemList = []
@@ -331,37 +331,37 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__dict_contents(self,tree): #TODO
-        print("dict_contents")
+        #print("dict_contents")
         return self.visit_children(tree)
 
     def grammar__declarations__operand_value(self,tree):
-        print("operand_value")
+        #print("operand_value")
         return self.visit(tree.children[0])
 
     def grammar__declarations__operand_var(self,tree): #TODO
-        print("operand_var")
+        #print("operand_var")
         return self.visit_children(tree)
 
     def grammar__declarations__value_string(self,tree):
-        print("value_string")
+        #print("value_string")
         self.valueType = "atomic"
         self.valueDataType = "str"
         return str(tree.children[0])
 
     def grammar__declarations__value_float(self,tree):
-        print("value_float")
+        #print("value_float")
         self.valueType = "atomic"
         self.valueDataType = "float"
         return str(tree.children[0])
 
     def grammar__declarations__value_int(self,tree):
-        print("value_int")
+        #print("value_int")
         self.valueType = "atomic"
         self.valueDataType = "int"
         return str(tree.children[0])
 
     def grammar__declarations__value_bool(self,tree):
-        print("value_bool")
+        #print("value_bool")
         self.valueType = "atomic"
         self.valueDataType = 'bool'
         return str(tree.children[0])

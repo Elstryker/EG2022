@@ -8,12 +8,11 @@ from interpreter.interpreter import MainInterpreter
 phrase = """
 str a = "1";
 int b;
-str b = a;
+str b = 3.;
 
 int set c;
 str set guy = {"on","tw","th","fo"};
 float tuple tu = (1.2,2.,3.);
-(str,int) dict di = {3:"ro",6:"he"};
 bool goo = False;
 
 a = 1;

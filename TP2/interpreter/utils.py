@@ -31,7 +31,7 @@ def generateCSS():
     
     .error .errortext {
         visibility: hidden;
-        width: 200px;
+        width: 500px;
         background-color: #555;
         color: #fff;
         text-align: center;
