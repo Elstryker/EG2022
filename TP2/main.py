@@ -9,7 +9,10 @@ phrase = """
 str a = "1";
 
 str b = a;
+str ggg;
 int b;
+
+str gh = ggg;
 
 int set c;
 str set guy = {"on","tw","th","fo"};

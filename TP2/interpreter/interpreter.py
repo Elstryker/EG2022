@@ -316,7 +316,14 @@ class MainInterpreter (Interpreter):
 
         value = self.variables[varName]
 
-        if value["state"] == ""
+        if value["state"][1] == False:
+            self.errors.append("Unassigned variable \"" + varName + "\"")
+            varName = utils.generateErrorTag(varName,"Unassigned variable")
+
+            self.valueDataType = ''
+            self.valueSize = 0
+
+            return varName
 
         value = self.variables[varName]
         value["state"][2] = True
