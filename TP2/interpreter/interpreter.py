@@ -31,16 +31,7 @@ class MainInterpreter (Interpreter):
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
         res = self.visit_children(tree)
-        #print(res[0])
-
-        '''for l in res:
-            for c in l:
-                #print(c,"SEP")
-                c = re.sub(r'\n\<p class=\"code\"\>\n\s*\n\<\/p\>\n',"teste",c)
-                '''
-                
-        
-
+    
         utils.generateHTML(''.join(res[0]))
 
         output = dict()
@@ -441,7 +432,6 @@ class MainInterpreter (Interpreter):
         if errors:
             self.errors.extend(errors)
             varName = utils.generateErrorTag(varName,";".join(errors))
-            #print(utils.generateErrorTag(varName,";".join(errors)))
          
         atrStr = f"{varName} = {exp}"
 
@@ -533,8 +523,7 @@ class MainInterpreter (Interpreter):
         bool=self.visit(tree.children[0])
         code=self.visit(tree.children[1])
         
-        #if('instruction_condition' in tree.children[1]):
-        #    #print("instruction_condition")
+        
         taggedCode = utils.generatePClassCodeTag(ident + "while(" + bool + ") { //controlLevel: "+ str(controlDepth))
         taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident +"}")
