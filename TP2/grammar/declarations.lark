@@ -26,7 +26,7 @@ var: WORD
 TYPE: "int"  
     | "float"
     | "str"  
-    | "bool"  
+    | "bool"
 
 set: "{" list_contents "}"
 list: "[" list_contents "]"
@@ -43,7 +43,7 @@ float_contents: FLOAT ("," FLOAT)*
 string_contents: ESCAPED_STRING ("," ESCAPED_STRING)*
 bool_contents: BOOL ("," BOOL)*
 
-dict_contents: value ":" value ("," value ":" value)*
+dict_contents: value ":" operand ("," value ":" operand)*
 
 operand: value  -> operand_value
        | var    -> operand_var

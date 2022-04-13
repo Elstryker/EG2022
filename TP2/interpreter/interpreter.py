@@ -13,9 +13,15 @@ class MainInterpreter (Interpreter):
         self.variables = dict() # var -> {state -> (declared, assigned, used), size -> int, datatype -> str, type -> str, keys -> list}
         self.warnings = []
         self.errors = []
-        self.valueType = None
         self.valueDataType = None
-        self.valueSize = 1
+        self.valueSize = 0
+        self.valueKeys = []
+        self.numDeclaredVars = dict()
+        self.numDeclaredVars['atomic'] = 0
+        self.numDeclaredVars['set'] = 0
+        self.numDeclaredVars['list'] = 0
+        self.numDeclaredVars['tuple'] = 0
+        self.numDeclaredVars['dict'] = 0
         self.nmrAtrib=0
         self.nmrRead=0
         self.nmrWrite=0
@@ -25,7 +31,7 @@ class MainInterpreter (Interpreter):
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
         res = self.visit_children(tree)
-        print(res[0])
+
         utils.generateHTML(''.join(res[0]))
 
         output = dict()
@@ -34,6 +40,7 @@ class MainInterpreter (Interpreter):
         output["vars"] = self.variables
         output["warnings"] = self.warnings
         output["errors"] = self.errors
+        output["numDeclaredVars"] = self.numDeclaredVars
 
         return output
 
@@ -41,20 +48,19 @@ class MainInterpreter (Interpreter):
         r = self.visit(tree.children[0])
         return r
 
-    def grammar__declarations__atomic_declaration(self,tree):
-        #print("atomic_decl_init")
+    def __generalDeclarationVisitor(self,tree,type):
         errors = []
-        type = str(tree.children[0])
+        dataType = str(tree.children[0])
         varName = self.visit(tree.children[1])
         childNum = len(tree.children)
 
         # See if variable was mentioned in the code
         if varName not in self.variables:
             value = dict()
-            value["state"] = [True,True,False] if childNum > 2 else [True,False,False]
-            value["size"] = 1
-            value["datatype"] = type
-            value["type"] = "atomic"
+            value["state"] = [True,False,False]
+            value["size"] = 0
+            value["datatype"] = dataType
+            value["type"] = type
             value["keys"] = []
             self.variables[varName] = value
 
@@ -66,8 +72,8 @@ class MainInterpreter (Interpreter):
             if value["state"][0] == True:
                 errors.append("Variable \"" + varName + "\" redeclared")
             
-            # Update variable status (depends if varibale is assigned)
-            value["state"] = [True,True] + [value["state"][2]] if childNum > 2 else [True] + value['state'][1:]
+            # Update variable status
+            value["state"] = [True] + value['state'][1:]
                 
         # if variable is assigned
         if childNum > 2:
@@ -77,13 +83,18 @@ class MainInterpreter (Interpreter):
             if self.valueDataType != value['datatype']:
                 errors.append("No correct typing in atribution of variable \"" + varName + "\"")
 
+            else:
+                value["size"] = self.valueSize
+                value["state"][1] = True
+
             self.valueDataType = None # Useless but for bug-free programming
+            self.valueSize = 0 # Useless but for bug-free programming
 
             if errors:
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName} = {operand};"
+            code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName} = {operand};"
 
         else:
 
@@ -91,138 +102,44 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} {varName};"
+            code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName};"
+
+        if not errors:
+            self.numDeclaredVars[type] += 1
 
         return utils.generatePClassCodeTag(code)
+
+    def grammar__declarations__atomic_declaration(self,tree):
+        #print("atomic_decl_init")
+        return self.__generalDeclarationVisitor(tree,"atomic")
 
     def grammar__declarations__set_declaration(self,tree):
         #print("set_declaration")
-        errors = []
-        type = str(tree.children[0])
-        varName = self.visit(tree.children[1])
-        childNum = len(tree.children)
-
-        # See if variable was mentioned in the code
-        if varName not in self.variables:
-            value = dict()
-            value["state"] = [True,True,False] if childNum > 2 else [True,False,False]
-            value["size"] = 0
-            value["datatype"] = type
-            value["type"] = "set"
-            value["keys"] = []
-            self.variables[varName] = value
-
-        else:
-
-            value = self.variables[varName]
-
-            # Case if variable declared
-            if value["state"][0] == True:
-                errors.append("Variable \"" + varName + "\" redeclared")
-            
-            # Update variable status (depends if varibale is assigned)
-            value["state"] = [True,True] + [value["state"][2]] if childNum > 2 else [True] + value['state'][1:]
-                
-        # if variable is assigned
-        if childNum > 2:
-            # Get value assigned to
-            operand = self.visit(tree.children[2])
-
-            value["size"] = self.valueSize
-
-            if self.valueDataType != value['datatype']:
-                errors.append("No correct typing in atribution of variable \"" + varName + "\"")
-
-            self.valueDataType = None # Useless but for bug-free programming
-            self.valueSize = 1 # Useless but for bug-free programming
-
-            if errors:
-                self.errors.extend(errors)
-                varName = utils.generateErrorTag(varName,";".join(errors))
-
-            code = f"{type} set {varName} = {operand};"
-
-        else:
-
-            if errors:
-                self.errors.extend(errors)
-                varName = utils.generateErrorTag(varName,";".join(errors))
-
-            code = f"{type} set {varName};"
-
-        return utils.generatePClassCodeTag(code)
+        return self.__generalDeclarationVisitor(tree,"set")
 
     def grammar__declarations__list_declaration(self,tree):
         #print("list_declaration")
-        errors = []
-        type = str(tree.children[0])
-        varName = self.visit(tree.children[1])
-        childNum = len(tree.children)
-
-        # See if variable was mentioned in the code
-        if varName not in self.variables:
-            value = dict()
-            value["state"] = [True,True,False] if childNum > 2 else [True,False,False]
-            value["size"] = 0
-            value["datatype"] = type
-            value["type"] = "list"
-            value["keys"] = []
-            self.variables[varName] = value
-
-        else:
-
-            value = self.variables[varName]
-
-            # Case if variable declared
-            if value["state"][0] == True:
-                errors.append("Variable \"" + varName + "\" redeclared")
-            
-            # Update variable status (depends if varibale is assigned)
-            value["state"] = [True,True] + [value["state"][2]] if childNum > 2 else [True] + value['state'][1:]
-                
-        # if variable is assigned
-        if childNum > 2:
-            # Get value assigned to
-            operand = self.visit(tree.children[2])
-
-            value["size"] = self.valueSize
-
-            if self.valueDataType != value['datatype']:
-                errors.append("No correct typing in atribution of variable \"" + varName + "\"")
-
-            self.valueDataType = None # Useless but for bug-free programming
-            self.valueSize = 1 # Useless but for bug-free programming
-
-            if errors:
-                self.errors.extend(errors)
-                varName = utils.generateErrorTag(varName,";".join(errors))
-
-            code = f"{type} list {varName} = {operand};"
-
-        else:
-
-            if errors:
-                self.errors.extend(errors)
-                varName = utils.generateErrorTag(varName,";".join(errors))
-
-            code = f"{type} list {varName};"
-
-        return utils.generatePClassCodeTag(code)
+        return self.__generalDeclarationVisitor(tree,"list")
 
     def grammar__declarations__tuple_declaration(self,tree):
         #print("tuple_declaration")
+        return self.__generalDeclarationVisitor(tree,"tuple")
+
+    def grammar__declarations__dict_declaration(self,tree):
+        #print("dict_declaration")
         errors = []
-        type = str(tree.children[0])
-        varName = self.visit(tree.children[1])
+        keyDataType = str(tree.children[0])
+        valueDataType = str(tree.children[1])
+        varName = self.visit(tree.children[2])
         childNum = len(tree.children)
 
         # See if variable was mentioned in the code
         if varName not in self.variables:
             value = dict()
-            value["state"] = [True,True,False] if childNum > 2 else [True,False,False]
+            value["state"] = [True,False,False]
             value["size"] = 0
-            value["datatype"] = type
-            value["type"] = "tuple"
+            value["datatype"] = (keyDataType,valueDataType)
+            value["type"] = 'dict'
             value["keys"] = []
             self.variables[varName] = value
 
@@ -234,27 +151,31 @@ class MainInterpreter (Interpreter):
             if value["state"][0] == True:
                 errors.append("Variable \"" + varName + "\" redeclared")
             
-            # Update variable status (depends if varibale is assigned)
-            value["state"] = [True,True] + [value["state"][2]] if childNum > 2 else [True] + value['state'][1:]
+            # Update variable status
+            value["state"] = [True] + value['state'][1:]
                 
         # if variable is assigned
-        if childNum > 2:
+        if childNum > 3:
             # Get value assigned to
-            operand = self.visit(tree.children[2])
+            operand = self.visit(tree.children[3])
 
-            value["size"] = self.valueSize
+            if self.valueDataType != value['datatype'] and self.valueSize != 0:
+                errors.append("No correct atribution of variable \"" + varName + "\"")
 
-            if self.valueDataType != value['datatype']:
-                errors.append("No correct typing in atribution of variable \"" + varName + "\"")
+            else:
+                value["size"] = self.valueSize
+                value["keys"] = self.valueKeys
+                value["state"][1] = True
 
             self.valueDataType = None # Useless but for bug-free programming
-            self.valueSize = 1 # Useless but for bug-free programming
+            self.valueSize = 0 # Useless but for bug-free programming
+            self.valueKeys = []
 
             if errors:
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} tuple {varName} = {operand};"
+            code = f"({keyDataType},{valueDataType}) dict {varName} = {operand};"
 
         else:
 
@@ -262,13 +183,12 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
-            code = f"{type} tuple {varName};"
+            code = f"({keyDataType},{valueDataType}) dict {varName};"
+
+        if not errors:
+            self.numDeclaredVars['dict'] += 1
 
         return utils.generatePClassCodeTag(code)
-
-    def grammar__declarations__dict_declaration(self,tree): #TODO
-        #print("dict_declaration")
-        return self.visit_children(tree)
 
     def grammar__declarations__var(self,tree):
         #print("var")
@@ -276,19 +196,23 @@ class MainInterpreter (Interpreter):
 
     def grammar__declarations__set(self,tree):
         #print("set")
-        return self.visit(tree.children[0])
+        self.valueDataType = 'set'
+        return f"{{{self.visit(tree.children[0])}}}"
 
     def grammar__declarations__list(self,tree):
         #print("list")
-        return self.visit(tree.children[0])
+        self.valueDataType = 'list'
+        return f"[{self.visit(tree.children[0])}]"
 
     def grammar__declarations__tuple(self,tree):
         #print("tuple")
-        return self.visit(tree.children[0])
+        self.valueDataType = 'tuple'
+        return f"({self.visit(tree.children[0])})"
 
     def grammar__declarations__dict(self,tree):
         #print("dict")
-        return self.visit(tree.children[0])
+        self.valueDataType = 'dict'
+        return f"{{{self.visit(tree.children[0])}}}"
 
     def grammar__declarations__list_contents(self,tree):
         #print("list_contents")
@@ -330,40 +254,107 @@ class MainInterpreter (Interpreter):
             elemList.append(str(child))
         return ",".join(elemList)
 
-    def grammar__declarations__dict_contents(self,tree): #TODO
+    def grammar__declarations__dict_contents(self,tree):
         #print("dict_contents")
-        return self.visit_children(tree)
+        keyDataType = set()
+        valueDataType = set()
+        repetitiveKeys = False
+
+        elemList = []
+        for key,value in zip(tree.children[0::2], tree.children[1::2]):
+            v_key = self.visit(key)
+            keyDataType.add(self.valueDataType)
+            v_value = self.visit(value)
+            valueDataType.add(self.valueDataType)
+
+            if v_key in self.valueKeys:
+                repetitiveKeys = True
+                break
+
+            self.valueKeys.append(v_key)
+
+            elemList.append(f"{v_key}:{v_value}")
+
+        if repetitiveKeys:
+            self.valueDataType = None
+            return utils.generateErrorTag(",".join(elemList),"Dictionary has repeated key")
+
+        self.valueSize = len(elemList)
+
+        if len(valueDataType) > 1 or len(keyDataType) > 1:
+            self.valueDataType = None
+            return utils.generateErrorTag(",".join(elemList),"Data types of dictionary are not uniform")
+
+        elif len(valueDataType) == 0 or len(keyDataType) == 0:
+            self.valueDataType = None
+
+        else:
+            self.valueDataType = (keyDataType.pop(),valueDataType.pop())
+
+        return ",".join(elemList)
+
+    def grammar__declarations__dict_value(self,tree):
+        #print("dict_value")
+        return self.visit(tree.children[0])
 
     def grammar__declarations__operand_value(self,tree):
         #print("operand_value")
         return self.visit(tree.children[0])
 
-    def grammar__declarations__operand_var(self,tree): #TODO
+    def grammar__declarations__operand_var(self,tree):
         #print("operand_var")
-        return self.visit_children(tree)
+        varName = self.visit(tree.children[0])
+
+        if varName not in self.variables:
+            self.errors.append("Undeclared variable \"" + varName + "\"")
+            varName = utils.generateErrorTag(varName,"Undeclared variable")
+
+            self.valueDataType = ''
+            self.valueSize = 0
+
+            return varName
+
+        value = self.variables[varName]
+
+        if value["state"][1] == False:
+            self.errors.append("Unassigned variable \"" + varName + "\"")
+            varName = utils.generateErrorTag(varName,"Unassigned variable")
+
+            self.valueDataType = ''
+            self.valueSize = 0
+
+            return varName
+
+        value = self.variables[varName]
+        value["state"][2] = True
+
+        self.valueDataType = value["datatype"]
+        self.valueSize = value["size"]
+
+        return varName
 
     def grammar__declarations__value_string(self,tree):
         #print("value_string")
-        self.valueType = "atomic"
         self.valueDataType = "str"
+        self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_float(self,tree):
         #print("value_float")
-        self.valueType = "atomic"
         self.valueDataType = "float"
+        self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_int(self,tree):
         #print("value_int")
-        self.valueType = "atomic"
         self.valueDataType = "int"
+        self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_bool(self,tree):
         #print("value_bool")
-        self.valueType = "atomic"
         self.valueDataType = 'bool'
+        self.valueSize = 1
         return str(tree.children[0])
     
     def code(self,tree):
