@@ -31,7 +31,7 @@ class MainInterpreter (Interpreter):
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
         res = self.visit_children(tree)
-    
+        print(res[0])
         utils.generateHTML(''.join(res[0]))
 
         output = dict()
@@ -377,7 +377,6 @@ class MainInterpreter (Interpreter):
         r=list()
         for child in tree.children:
             r.append(self.visit(child))
-
         return r
 
     def instruction_atribution(self,tree):
@@ -412,8 +411,7 @@ class MainInterpreter (Interpreter):
 
         if varName in self.variables:
             self.variables[varName]["state"][2] = True
-            #print("PASSA:"+varName)
-            #print(varName, self.variables[varName])
+            
         else:
             value = dict()
             value["state"] = [False,False,True]
@@ -422,7 +420,7 @@ class MainInterpreter (Interpreter):
             value["type"] = None
             value["keys"] = []
             self.variables[varName] = value
-            #print("ERRO:"+varName)
+            
         
         value =self.variables[varName]
         #print(varName,value,exp)
@@ -447,7 +445,8 @@ class MainInterpreter (Interpreter):
 
         self.identLevel += 1
         self.numberIfs += 1
-
+        # Cálculo da identação para pretty #printing
+        ident = (identDepth * identNumber * " ")
         cond = self.visit(tree.children[0])
         code = self.visit(tree.children[1])
         catchBool = re.search(r'\<p class=\"code\">\n\s*(if\(\s*(.*)\)\s*{\s*\/\/controlLevel\: \d+)\n<\/p>\n',code[0])
@@ -455,13 +454,18 @@ class MainInterpreter (Interpreter):
             cond += " && " + catchBool.group(2)
             code[0]= code[0].replace(catchBool.group(0),"")
             code[0] = re.sub(r"\<p class=\"code\"\>\n\s*}\n\<\/p\>\n","",code[0])
-
+        
+            for c in code:
+                toRemoveIdent = re.search(r"\n(\s*)\<div class",c)
+                if toRemoveIdent:
+                    if  len(toRemoveIdent.group(1)) > len(ident):
+                        #print("antes")
+                        #print(c)
+                        c = re.sub(r'\n\s*<div class',"\n"+"FOI JUNTO UM IF"+"<div class",c)
+                        #print("depois")
+                        print(c)
 
         self.canReplace[cond] = code
-
-        # Cálculo da identação para pretty #printing
-        ident = (identDepth * identNumber * " ")
-
 
         taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth))
         taggedCode += ''.join(code)
@@ -597,11 +601,26 @@ class MainInterpreter (Interpreter):
         
         # Cálculo da identação para pretty printing
         ident = (identDepth * identNumber * " ")
-        bool=self.visit(tree.children[0])
+        
+        size = len(tree.children)
+        insidePar = ""
+        insidePar = "<p class=\"code\">\n"
+        for i in range(size-1):
+            getCode = self.visit(tree.children[i])
+            findCode = re.search(r"\<p class=\"code\"\>\n\s*((.*))\n\<\/p\>",getCode)
+            if findCode:
+                insidePar += findCode.group(1)
+            else:
+                insidePar += getCode
+            if(not i == size-2):
+                insidePar+= ";"
+        
+        #print(insidePar)
+
         code=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag(ident + "for(" + bool + " { // controlLevel: " + str(controlDepth))
-        taggedCode += ''.join(code)
+        taggedCode = utils.generatePClassCodeTag(ident + "for(" + insidePar + ") { // controlLevel: " + str(controlDepth))
+        taggedCode += utils.generatePClassCodeTag(ident + code)
         taggedCode += utils.generatePClassCodeTag(ident + "}")
         
         self.identLevel = identDepth
