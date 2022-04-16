@@ -7,7 +7,8 @@ instruction: atribution ";" -> instruction_atribution
            | condition      -> instruction_condition
            | cycle          -> instruction_cycle
 
-atribution: var "=" expression
+atribution: var "=" expression -> atribution
+
 
 var: WORD               -> var
    | WORD "[" INT "]"   -> var_struct
@@ -55,5 +56,5 @@ value: ESCAPED_STRING   -> value_string
 %import common.WORD
 %import common.FLOAT
 %import common.ESCAPED_STRING
-%import .grammar.declarations  (declaration,BOOL)
+%import .grammar.declarations  (declaration,BOOL,TYPE)
 '''

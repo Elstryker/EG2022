@@ -280,7 +280,7 @@ class MainInterpreter (Interpreter):
                 break
 
             self.valueKeys.append(v_key)
-
+            
             elemList.append(f"{v_key}:{v_value}")
 
         if repetitiveKeys:
@@ -393,43 +393,17 @@ class MainInterpreter (Interpreter):
     def atribution(self,tree):
         self.nmrWrite += 1
         self.nmrAtrib+=1
-        errors = []
-        ident = (self.identLevel * identNumber * " ")
 
-        #if tree.children[0].data =="var":
+        ident = (self.identLevel * identNumber * " ")
+               
         varName = self.visit(tree.children[0])
-        #else:
-            #varName = self.visit(tree.children[0])
-            #varName = tree.children[0].children[0]
-            #index = tree.children[0].children[1]
-            
-       
+    
         exp = self.visit(tree.children[1])
 
-        if varName in self.variables:
-            self.variables[varName]["state"][2] = True
-            
-        else:
-            value = dict()
-            value["state"] = [False,False,True]
-            value["size"]=0
-            value["datatype"]= None
-            value["type"] = None
-            value["keys"] = []
-            self.variables[varName] = value
-            
-        
-        value =self.variables[varName]
-        if value["state"][0]==False and value["state"][2]==True:
-            errors.append("Variable \"" + varName +"\" used but not initialized")
-            
-        if errors:
-            self.errors.extend(errors)
-            varName = utils.generateErrorTag(varName,";".join(errors))
-         
         atrStr = f"{varName} = {exp};"
-
+        
         return utils.generatePClassCodeTag(ident + atrStr)
+
 
     def condition(self,tree):
         identDepth = self.identLevel
@@ -442,7 +416,7 @@ class MainInterpreter (Interpreter):
         self.identLevel += 1
         self.numberIfs += 1
 
-        # Cálculo da identação para pretty #printing
+        # Cálculo da identação para pretty printing
         ident = (identDepth * identNumber * " ")
 
         cond = self.visit(tree.children[0])
@@ -453,10 +427,15 @@ class MainInterpreter (Interpreter):
             code[0]= code[0].replace(catchBool.group(0),"")
             code[0] = re.sub(r"\<p class=\"code\"\>\n\s*}\n\<\/p\>\n","",code[0])
             wasChanged = re.search(r'\n(.*)\$IF conjugado</span></div>',code[0])
+            hasError = re.search(r'\n\s*<div class="error"',code[0])
+            pureCode = re.search(r'<p class="code">\n(\s*(\w+(.)*;))\n</p>',code[0])
+
             if(wasChanged):
-                code[0] = re.sub(r'\n(.*)\$IF conjugado</span></div>',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class",code[0])
-            else:
-                code[0] = re.sub(r'\n\s*<div class',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class",code[0])
+                code[0] = re.sub(r'\n(.*)\$IF conjugado</span></div>',"\n"+utils.generateSubTag(catchBool.group(2)),code[0])
+            elif hasError:
+                code[0] = re.sub(r'\n\s*<div class="error"',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class=\"error\"",code[0])
+            if pureCode:
+                code[0] = re.sub(r'<p class="code">\n\s*\w+(.)*;\n</p>',"<p class=\"code\">\n"+utils.generateSubTag(catchBool.group(2))+pureCode.group(2),code[0])
         
 
         self.canReplace[cond] = code
@@ -548,7 +527,7 @@ class MainInterpreter (Interpreter):
         bool=self.visit(tree.children[1])
 
         taggedCode = utils.generatePClassCodeTag(ident + "do { //controlLevel: "+str(controlDepth))
-        taggedCode += ''.join(identCode + code)
+        taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident + "} while("+bool+")")
         
         self.identLevel = identDepth
@@ -573,7 +552,7 @@ class MainInterpreter (Interpreter):
         code=self.visit(tree.children[1])
 
         taggedCode = utils.generatePClassCodeTag(ident + "repeat(" + mat + ") { //controlLevel: " + str(controlDepth))
-        taggedCode += ''.join(identCode + code)
+        taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident + "}")
         
         self.identLevel = identDepth
@@ -616,10 +595,10 @@ class MainInterpreter (Interpreter):
        
         insidePar = insidePar.replace(";;",";")
 
-        code=self.visit(tree.children[1])
+        code=self.visit(tree.children[size-1])
 
         taggedCode = utils.generatePClassCodeTag(ident + "for(" + insidePar + ") { // controlLevel: " + str(controlDepth))
-        taggedCode += utils.generatePClassCodeTag(identCode + code)
+        taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident + "}")
         
         self.identLevel = identDepth
@@ -694,10 +673,62 @@ class MainInterpreter (Interpreter):
         return str(tree.children[0])
 
     def var(self,tree):
-        return str(tree.children[0])
+        errors = []
+        word = tree.children[0]
+        if word in self.variables:
+            self.variables[word]["state"][2] = True
+            
+        else:
+            value = dict()
+            value["state"] = [False,False,True]
+            value["size"]=0
+            value["datatype"]= None
+            value["type"] = None
+            value["keys"] = []
+            self.variables[word] = value
+        
+        value = self.variables[word]
+        if value["state"][0]==False and value["state"][2]==True:
+            errors.append("Variable \"" + word +"\" used but not initialized")
+
+        if errors:
+            self.errors.extend(errors)
+            word = utils.generateErrorTag(word,";".join(errors))
+        return word
 
     def var_struct(self,tree):
+        errors = []
         word = tree.children[0]
         ind = tree.children[1]
-        return f"{word}[{ind}]"
+
+        if word in self.variables:
+            self.variables[word]["state"][2] = True
+        else:
+            value = dict()
+            value["state"] = [False,False,True]
+            value["size"]=0
+            value["datatype"]= None
+            value["type"] = None
+            value["keys"] = []
+            self.variables[word] = value
+        
+        value = self.variables[word]
+        if(not value["type"] == None):
+            if value["type"]=="dict":
+                if not ind in value["keys"]:
+                    errors.append("Key \""+ind+"\" doesn't exist in variable \""+word+"\"")
+            elif not value["type"]=="atomic":
+                if ind < value["size"] and ind>=0:
+                    errors.append("Index \""+ind+"\" doesn't exist in variable \""+word+"\"")
+        
+
+        if value["state"][0]==False and value["state"][2]==True:
+            errors.append("Variable \"" + word +"\" used but not initialized")
+
+        if errors:
+            self.errors.extend(errors)
+            word = utils.generateErrorTag(word,";".join(errors))
+        ret = f"{word}[{ind}]"
+
+        return ret
     
