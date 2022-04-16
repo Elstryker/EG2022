@@ -1,16 +1,17 @@
 from lark.visitors import Interpreter
 from lark import Tree,Token
-import re
 import interpreter.utils as utils
+import re
 
-global identLevel
+global identNumber
 
-identLevel = 4
+identNumber = 4
 
 class MainInterpreter (Interpreter):
 
     def __init__(self):
         self.variables = dict() # var -> {state -> (declared, assigned, used), size -> int, datatype -> str, type -> str, keys -> list}
+        self.canReplace = dict()
         self.warnings = []
         self.errors = []
         self.valueDataType = None
@@ -27,6 +28,11 @@ class MainInterpreter (Interpreter):
         self.nmrWrite=0
         self.nmrCond=0
         self.nmrCycle=0
+        self.identLevel = 0
+        self.numberIfs = 0
+        self.controlDepth = 0
+        self.maxcontrolDepth = 0
+        self.controlInside = 0
 
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
@@ -36,11 +42,13 @@ class MainInterpreter (Interpreter):
 
         output = dict()
         # Juntar o código dos vários blocos
-        output["html"] = ''.join(res[0])
+        output["html"] = res[0]
         output["vars"] = self.variables
         output["warnings"] = self.warnings
         output["errors"] = self.errors
+        output["controlInside"] = self.controlInside
         output["numDeclaredVars"] = self.numDeclaredVars
+
 
         return output
 
@@ -361,11 +369,11 @@ class MainInterpreter (Interpreter):
         r=list()
         for child in tree.children:
             r.append(self.visit(child))
-
         return r
 
     def instruction_atribution(self,tree):
         r=""
+
         for child in tree.children:
             r+=self.visit(child)
         
@@ -383,34 +391,114 @@ class MainInterpreter (Interpreter):
         return self.visit(tree.children[0])
 
     def atribution(self,tree):
-        self.nmrWrite+=1
+        self.nmrWrite += 1
         self.nmrAtrib+=1
-        var = self.visit(tree.children[0])
+        errors = []
+        ident = (self.identLevel * identNumber * " ")
+
+        #if tree.children[0].data =="var":
+        varName = self.visit(tree.children[0])
+        #else:
+            #varName = self.visit(tree.children[0])
+            #varName = tree.children[0].children[0]
+            #index = tree.children[0].children[1]
+            
+       
         exp = self.visit(tree.children[1])
-        atrStr = f"{var} = {exp}"
-        return utils.generatePClassCodeTag(atrStr)
+
+        if varName in self.variables:
+            self.variables[varName]["state"][2] = True
+            
+        else:
+            value = dict()
+            value["state"] = [False,False,True]
+            value["size"]=0
+            value["datatype"]= None
+            value["type"] = None
+            value["keys"] = []
+            self.variables[varName] = value
+            
+        
+        value =self.variables[varName]
+        if value["state"][0]==False and value["state"][2]==True:
+            errors.append("Variable \"" + varName +"\" used but not initialized")
+            
+        if errors:
+            self.errors.extend(errors)
+            varName = utils.generateErrorTag(varName,";".join(errors))
+         
+        atrStr = f"{varName} = {exp};"
+
+        return utils.generatePClassCodeTag(ident + atrStr)
 
     def condition(self,tree):
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel += 1
+        self.numberIfs += 1
+
+        # Cálculo da identação para pretty #printing
+        ident = (identDepth * identNumber * " ")
+
         cond = self.visit(tree.children[0])
         code = self.visit(tree.children[1])
-        #print(code)
-        taggedCode = utils.generatePClassCodeTag("if( "+cond+") {")
+        catchBool = re.search(r'\<p class=\"code\">\n\s*(if\(\s*(.*)\)\s*{\s*\/\/controlLevel\: \d+)\n<\/p>\n',code[0])
+        if catchBool and catchBool.group(2) in self.canReplace:
+            cond += " && " + catchBool.group(2)
+            code[0]= code[0].replace(catchBool.group(0),"")
+            code[0] = re.sub(r"\<p class=\"code\"\>\n\s*}\n\<\/p\>\n","",code[0])
+            wasChanged = re.search(r'\n(.*)\$IF conjugado</span></div>',code[0])
+            if(wasChanged):
+                code[0] = re.sub(r'\n(.*)\$IF conjugado</span></div>',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class",code[0])
+            else:
+                code[0] = re.sub(r'\n\s*<div class',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class",code[0])
+        
+
+        self.canReplace[cond] = code
+
+        taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth))
         taggedCode += ''.join(code)
-        taggedCode +=utils.generatePClassCodeTag("}")
+        taggedCode +=utils.generatePClassCodeTag(ident + "}")
+
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
         
         return taggedCode
 
     def condition_else(self,tree):
+
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel += 1
+        self.numberIfs += 1
+
         cond = self.visit(tree.children[0])
         code = self.visit(tree.children[1])
         elseCode = self.visit(tree.children[2])
-        #print(code)
-        taggedCode = utils.generatePClassCodeTag("if( "+cond+") {")
+        
+        # Cálculo da identação para pretty #printing
+        ident = (identDepth * identNumber * " ")
+
+
+        taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { // controlLevel: "+str(controlDepth))
         taggedCode += ''.join(code)
-        taggedCode +=utils.generatePClassCodeTag("}")
-        taggedCode +=utils.generatePClassCodeTag("else{")
+        taggedCode +=utils.generatePClassCodeTag(ident + "}")
+        taggedCode +=utils.generatePClassCodeTag(ident + "else { // controlLevel: " + str(controlDepth))
         taggedCode += ''.join(elseCode)
-        taggedCode +=utils.generatePClassCodeTag("}")
+        taggedCode +=utils.generatePClassCodeTag(ident + "}")
+
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
 
         return taggedCode
 
@@ -418,47 +506,126 @@ class MainInterpreter (Interpreter):
         return self.visit(tree.children[0])
 
     def while_cycle(self,tree):
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel +=1
         
+        # Cálculo da identação para pretty printing
+        ident = (identDepth* identNumber * " ")
+
         bool=self.visit(tree.children[0])
         code=self.visit(tree.children[1])
         
-        #if('instruction_condition' in tree.children[1]):
-        #    print("instruction_condition")
-        taggedCode = utils.generatePClassCodeTag("while(" + bool + ") {")
-        taggedCode += ''.join(code)
-        taggedCode += utils.generatePClassCodeTag("}")
         
+        taggedCode = utils.generatePClassCodeTag(ident + "while(" + bool + ") { //controlLevel: "+ str(controlDepth))
+        taggedCode += ''.join(code)
+        taggedCode += utils.generatePClassCodeTag(ident +"}")
+        
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
         return taggedCode
 
     def do_while_cycle(self,tree):
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel +=1
+        
+        # Cálculo da identação para pretty printing
+        ident = (identDepth* identNumber * " ")
+        identCode = ((identDepth+1)* identNumber * " ")
+
         code=self.visit(tree.children[0])
         bool=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag("do {")
-        taggedCode += ''.join(code)
-        taggedCode += utils.generatePClassCodeTag("} while("+bool+")")
+        taggedCode = utils.generatePClassCodeTag(ident + "do { //controlLevel: "+str(controlDepth))
+        taggedCode += ''.join(identCode + code)
+        taggedCode += utils.generatePClassCodeTag(ident + "} while("+bool+")")
         
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
+
         return taggedCode
 
     def repeat_cycle(self,tree):
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel +=1
+        
+        # Cálculo da identação para pretty printing
+        ident = (identDepth* identNumber * " ")
+        identCode = ((identDepth+1)* identNumber * " ")
         mat=self.visit(tree.children[0])
         code=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag("repeat(" + mat + ") {")
-        taggedCode += ''.join(code)
-        taggedCode += utils.generatePClassCodeTag("}")
+        taggedCode = utils.generatePClassCodeTag(ident + "repeat(" + mat + ") { //controlLevel: " + str(controlDepth))
+        taggedCode += ''.join(identCode + code)
+        taggedCode += utils.generatePClassCodeTag(ident + "}")
         
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
+
+
         return taggedCode
         
     def for_cycle(self,tree):
-        #TODO
-        bool=self.visit(tree.children[0])
+
+        identDepth = self.identLevel
+        controlDepth = self.controlDepth
+        self.controlDepth += 1
+        if(controlDepth>1):
+            self.controlInside +=1
+        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+
+        self.identLevel +=1
+        
+        # Cálculo da identação para pretty printing
+        ident = (identDepth* identNumber * " ")
+        identCode = ((identDepth+1)* identNumber * " ")
+        
+        size = len(tree.children)
+        insidePar = "<p class=\"code\">\n"
+        for i in range(size-1):
+            getCode = self.visit(tree.children[i])
+            findCode = re.search(r"\<p class=\"code\"\>\n\s*((.*))\n\<\/p\>",getCode)
+            if findCode:
+                if i == size-2:
+                    sub=findCode.group(1).replace(";","")
+                    insidePar += sub
+                else:
+                    insidePar += findCode.group(1)
+                    
+            else:
+                if(not i==size-2):
+                    insidePar += getCode
+                    insidePar +=";"
+       
+        insidePar = insidePar.replace(";;",";")
+
         code=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag("for(" + bool + " {")
-        taggedCode += ''.join(code)
-        taggedCode += utils.generatePClassCodeTag("}")
+        taggedCode = utils.generatePClassCodeTag(ident + "for(" + insidePar + ") { // controlLevel: " + str(controlDepth))
+        taggedCode += utils.generatePClassCodeTag(identCode + code)
+        taggedCode += utils.generatePClassCodeTag(ident + "}")
         
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
+
+
         return taggedCode
         
 
@@ -486,6 +653,7 @@ class MainInterpreter (Interpreter):
         center = tree.children[1]
         right = self.visit(tree.children[2])
         
+
         return f"{left} {center} {right}"
 
 
@@ -500,7 +668,17 @@ class MainInterpreter (Interpreter):
         return r
 
     def operand(self,tree):
+        errors=[]
         value=self.visit(tree.children[0])
+        
+        if(tree.children[0].data=="var"):
+            if value not in self.variables or self.variables[value]["state"][0]==False:
+                errors.append("Variable \"" + value + "\" used but not initialized")
+            
+        if errors:
+            self.errors.extend(errors)
+            value = utils.generateErrorTag(value,";".join(errors))
+
         return value
 
     def value_string(self,tree):

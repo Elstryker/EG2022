@@ -22,6 +22,24 @@ bool goo = 2;
 
 a = 1;
 
+if(cond > 0 + 1 && a + 1 == 0 || cond < 2) {
+    if(y[0] > 1) {
+        if(z > 2) {
+            z = 1; k = 3;
+        }
+    }
+    while(cond > 0) {
+        if(z < 8) {
+            z = 1;
+        }
+        else {
+            x[1] = 0;
+        }
+    }
+}
+for(i = 0; i<a;a=a+1){
+    a =1;
+}
 x=3;
 """
 
@@ -31,10 +49,14 @@ parse_tree = p.parse(phrase)
 
 data = MainInterpreter().visit(parse_tree)
 
+
+print(data["controlInside"])
+
 print(data["html"])
 
 import json
 
 print(json.dumps(data['vars'],sort_keys=True, indent=4))
+
 
 # print(parse_tree.pretty())
