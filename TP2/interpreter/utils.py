@@ -2,7 +2,7 @@
 def generateErrorTag(text, errorMessage="Erro na variável"):
     retStr = '<div class="error">'
     retStr += text
-    retStr += f'<span class="errortext">${errorMessage}</span></div>'
+    retStr += f'<span class="errortext">{errorMessage}</span></div>'
 
     return retStr
 
