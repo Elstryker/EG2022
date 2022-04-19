@@ -33,6 +33,8 @@ class MainInterpreter (Interpreter):
         self.controlDepth = 0
         self.maxcontrolDepth = 0
         self.controlInside = 0
+        self.replaceable = False
+        
 
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
@@ -383,6 +385,7 @@ class MainInterpreter (Interpreter):
     def instruction_condition(self,tree):
         self.nmrCond+=1
         self.nmrRead+=1
+
         
         return self.visit(tree.children[0])
     
@@ -409,7 +412,7 @@ class MainInterpreter (Interpreter):
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -418,43 +421,40 @@ class MainInterpreter (Interpreter):
 
         # Cálculo da identação para pretty printing
         ident = (identDepth * identNumber * " ")
-
         cond = self.visit(tree.children[0])
         code = self.visit(tree.children[1])
-        catchBool = re.search(r'\<p class=\"code\">\n\s*(if\(\s*(.*)\)\s*{\s*\/\/controlLevel\: \d+)\n<\/p>\n',code[0])
-        if catchBool and catchBool.group(2) in self.canReplace:
-            cond += " && " + catchBool.group(2)
-            code[0]= code[0].replace(catchBool.group(0),"")
-            code[0] = re.sub(r"\<p class=\"code\"\>\n\s*}\n\<\/p\>\n","",code[0])
-            wasChanged = re.search(r'\n(.*)\$IF conjugado</span></div>',code[0])
-            hasError = re.search(r'\n\s*<div class="error"',code[0])
-            pureCode = re.search(r'<p class="code">\n(\s*(\w+(.)*;))\n</p>',code[0])
 
-            if(wasChanged):
-                code[0] = re.sub(r'\n(.*)\$IF conjugado</span></div>',"\n"+utils.generateSubTag(catchBool.group(2)),code[0])
-            elif hasError:
-                code[0] = re.sub(r'\n\s*<div class="error"',"\n"+utils.generateSubTag(catchBool.group(2))+"<div class=\"error\"",code[0])
-            if pureCode:
-                code[0] = re.sub(r'<p class="code">\n\s*\w+(.)*;\n</p>',"<p class=\"code\">\n"+utils.generateSubTag(catchBool.group(2))+pureCode.group(2),code[0])
         
+        if (len(tree.children[1].children) == 1 and tree.children[1].children[0].children[0].data=="condition"):
+            
+            self.replaceable= True
+            taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth)+ " " +utils.generateSubTag("Pode ser substituido"))
+            taggedCode += ''.join(code)
+            taggedCode +=utils.generatePClassCodeTag(ident + "}")
 
-        self.canReplace[cond] = code
+            self.identLevel = identDepth
+            self.controlDepth = controlDepth
 
-        taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth))
-        taggedCode += ''.join(code)
-        taggedCode +=utils.generatePClassCodeTag(ident + "}")
+            return taggedCode
+            
+        else:
+            
+            self.replaceable= False
+            taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth))
+            taggedCode += ''.join(code)
+            taggedCode +=utils.generatePClassCodeTag(ident + "}")
 
-        self.identLevel = identDepth
-        self.controlDepth = controlDepth
-        
-        return taggedCode
+            self.identLevel = identDepth
+            self.controlDepth = controlDepth
+
+            return taggedCode
 
     def condition_else(self,tree):
 
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -488,7 +488,7 @@ class MainInterpreter (Interpreter):
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -513,7 +513,7 @@ class MainInterpreter (Interpreter):
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -521,7 +521,6 @@ class MainInterpreter (Interpreter):
         
         # Cálculo da identação para pretty printing
         ident = (identDepth* identNumber * " ")
-        identCode = ((identDepth+1)* identNumber * " ")
 
         code=self.visit(tree.children[0])
         bool=self.visit(tree.children[1])
@@ -539,7 +538,7 @@ class MainInterpreter (Interpreter):
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -547,7 +546,7 @@ class MainInterpreter (Interpreter):
         
         # Cálculo da identação para pretty printing
         ident = (identDepth* identNumber * " ")
-        identCode = ((identDepth+1)* identNumber * " ")
+
         mat=self.visit(tree.children[0])
         code=self.visit(tree.children[1])
 
@@ -566,7 +565,7 @@ class MainInterpreter (Interpreter):
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
-        if(controlDepth>1):
+        if(controlDepth>0):
             self.controlInside +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
@@ -574,7 +573,6 @@ class MainInterpreter (Interpreter):
         
         # Cálculo da identação para pretty printing
         ident = (identDepth* identNumber * " ")
-        identCode = ((identDepth+1)* identNumber * " ")
         
         size = len(tree.children)
         insidePar = "<p class=\"code\">\n"
@@ -688,8 +686,12 @@ class MainInterpreter (Interpreter):
             self.variables[word] = value
         
         value = self.variables[word]
-        if value["state"][0]==False and value["state"][2]==True:
+        if value["state"][1]==False and value["state"][2]==True:
             errors.append("Variable \"" + word +"\" used but not initialized")
+
+        if value["state"][0]==False and value["state"][2]==True:
+            errors.append("Variable \"" + word +"\" used but not declared")
+
 
         if errors:
             self.errors.extend(errors)
@@ -722,8 +724,12 @@ class MainInterpreter (Interpreter):
                     errors.append("Index \""+ind+"\" doesn't exist in variable \""+word+"\"")
         
 
-        if value["state"][0]==False and value["state"][2]==True:
+        if value["state"][1]==False and value["state"][2]==True:
             errors.append("Variable \"" + word +"\" used but not initialized")
+
+        if value["state"][0]==False and value["state"][2]==True:
+            errors.append("Variable \"" + word +"\" used but not declared")
+
 
         if errors:
             self.errors.extend(errors)

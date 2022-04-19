@@ -24,9 +24,12 @@ str teste;
 a = 1;
 teste = di[1];
 if(cond > 0 + 1 && a + 1 == 0 || cond < 2) {
-    if(y[0] > 1) {
-        if(z > 2) {
+    if(y[0] > 1) { 
+        if(z > 2) { 
             z = 1; k = 3;
+        }
+        else{
+            a=0;
         }
     }
     while(cond > 0) {

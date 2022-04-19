@@ -7,13 +7,13 @@ instruction: atribution ";" -> instruction_atribution
            | condition      -> instruction_condition
            | cycle          -> instruction_cycle
 
-atribution: var "=" expression -> atribution
+atribution: var "=" expression 
 
 
-var: WORD               -> var
+var: WORD              
    | WORD "[" INT "]"   -> var_struct
 
-condition: "if" "(" boolexpr ")" "{" code "}"                       -> condition
+condition: "if" "(" boolexpr ")" "{" code "}"                       
          | "if" "(" boolexpr ")" "{" code "}" "else" "{" code "}"   -> condition_else
 
 cycle: while_cycle
