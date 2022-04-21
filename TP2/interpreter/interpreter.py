@@ -1,3 +1,4 @@
+from distutils.log import error
 from lark.visitors import Interpreter
 from lark import Tree,Token
 import interpreter.utils as utils
@@ -11,49 +12,43 @@ class MainInterpreter (Interpreter):
 
     def __init__(self):
         self.variables = dict() # var -> {state -> (declared, assigned, used), size -> int, datatype -> str, type -> str, keys -> list}
-        self.canReplace = dict()
         self.warnings = []
         self.errors = []
         self.valueDataType = None
         self.valueSize = 0
-        self.valueKeys = []
-        self.numDeclaredVars = dict()
-        self.numDeclaredVars['atomic'] = 0
-        self.numDeclaredVars['set'] = 0
-        self.numDeclaredVars['list'] = 0
-        self.numDeclaredVars['tuple'] = 0
-        self.numDeclaredVars['dict'] = 0
-        self.nmrAtrib=0
-        self.nmrRead=0
-        self.nmrWrite=0
-        self.nmrCond=0
-        self.nmrCycle=0
+        self.numDeclaredVars = {'atomic':0,'set':0,'list':0,'tuple':0,'dict':0}
+        self.numInstructions = {'atribution':0,'read':0,'write':0,'condition':0,'cycle':0,'nestedControl':0}
         self.identLevel = 0
-        self.numberIfs = 0
         self.controlDepth = 0
         self.maxcontrolDepth = 0
-        self.controlInside = 0
-        self.replaceable = False
+        self.ifData = None
+        self.codeData = None
         
 
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
         res = self.visit_children(tree)
 
-        utils.generateHTML(''.join(res[0]))
+        self.analyzeVariablesDeclaredAndNotMentioned()
+
+        self.errors = list(set(self.errors))
+        self.warnings = list(set(self.warnings))
+        statReport = utils.generateHTMLStatReport(self.numDeclaredVars,self.errors,self.warnings,self.numInstructions)
+
+        utils.generateHTML(''.join(res[0]),statReport)
 
         output = dict()
         # Juntar o código dos vários blocos
         output["html"] = res[0]
         output["vars"] = self.variables
-        output["warnings"] = self.warnings
-        output["errors"] = self.errors
-        output["controlInside"] = self.controlInside
-        output["numDeclaredVars"] = self.numDeclaredVars
-
 
         return output
 
+    def analyzeVariablesDeclaredAndNotMentioned(self):
+        for (var,value) in self.variables.items():
+            if value["state"][0] == True and value["state"][1] == False and value["state"][2] == False:
+                self.warnings.append("Variável \"" + var + "\" declarada mas nunca mencionada")        
+    
     def declaration(self,tree):
         r = self.visit(tree.children[0])
         return r
@@ -70,8 +65,6 @@ class MainInterpreter (Interpreter):
             value["state"] = [True,False,False]
             value["size"] = 0
             value["datatype"] = dataType
-            value["type"] = type
-            value["keys"] = []
             self.variables[varName] = value
 
         else:
@@ -80,7 +73,7 @@ class MainInterpreter (Interpreter):
 
             # Case if variable declared
             if value["state"][0] == True:
-                errors.append("Variable \"" + varName + "\" redeclared")
+                errors.append("Variável \"" + varName + "\" redeclarada")
             
             # Update variable status
             value["state"] = [True] + value['state'][1:]
@@ -91,7 +84,7 @@ class MainInterpreter (Interpreter):
             operand = self.visit(tree.children[2])
 
             if self.valueDataType != value['datatype']:
-                errors.append("No correct typing in atribution of variable \"" + varName + "\"")
+                errors.append("Tipo incorreto na atribuição da variável \"" + varName + "\"")
 
             else:
                 value["size"] = self.valueSize
@@ -149,8 +142,6 @@ class MainInterpreter (Interpreter):
             value["state"] = [True,False,False]
             value["size"] = 0
             value["datatype"] = (keyDataType,valueDataType)
-            value["type"] = 'dict'
-            value["keys"] = []
             self.variables[varName] = value
 
         else:
@@ -159,7 +150,7 @@ class MainInterpreter (Interpreter):
 
             # Case if variable declared
             if value["state"][0] == True:
-                errors.append("Variable \"" + varName + "\" redeclared")
+                errors.append("Variável \"" + varName + "\" redeclarada")
             
             # Update variable status
             value["state"] = [True] + value['state'][1:]
@@ -170,16 +161,14 @@ class MainInterpreter (Interpreter):
             operand = self.visit(tree.children[3])
 
             if self.valueDataType != value['datatype'] and self.valueSize != 0:
-                errors.append("No correct atribution of variable \"" + varName + "\"")
+                errors.append("Tipo incorreto na atribuição da variável \"" + varName + "\"")
 
             else:
                 value["size"] = self.valueSize
-                value["keys"] = self.valueKeys
                 value["state"][1] = True
 
             self.valueDataType = None # Useless but for bug-free programming
             self.valueSize = 0 # Useless but for bug-free programming
-            self.valueKeys = []
 
             if errors:
                 self.errors.extend(errors)
@@ -204,22 +193,22 @@ class MainInterpreter (Interpreter):
         #print("var")
         return str(tree.children[0])
 
-    def grammar__declarations__set(self,tree):
+    def set(self,tree):
         #print("set")
         self.valueDataType = 'set'
         return f"{{{self.visit(tree.children[0])}}}"
 
-    def grammar__declarations__list(self,tree):
+    def list(self,tree):
         #print("list")
         self.valueDataType = 'list'
         return f"[{self.visit(tree.children[0])}]"
 
-    def grammar__declarations__tuple(self,tree):
+    def tuple(self,tree):
         #print("tuple")
         self.valueDataType = 'tuple'
         return f"({self.visit(tree.children[0])})"
 
-    def grammar__declarations__dict(self,tree):
+    def dict(self,tree):
         #print("dict")
         self.valueDataType = 'dict'
         return f"{{{self.visit(tree.children[0])}}}"
@@ -269,6 +258,7 @@ class MainInterpreter (Interpreter):
         keyDataType = set()
         valueDataType = set()
         repetitiveKeys = False
+        valueKeys = []
 
         elemList = []
         for key,value in zip(tree.children[0::2], tree.children[1::2]):
@@ -277,23 +267,23 @@ class MainInterpreter (Interpreter):
             v_value = self.visit(value)
             valueDataType.add(self.valueDataType)
 
-            if v_key in self.valueKeys:
+            if v_key in valueKeys:
                 repetitiveKeys = True
                 break
 
-            self.valueKeys.append(v_key)
+            valueKeys.append(v_key)
             
             elemList.append(f"{v_key}:{v_value}")
 
         if repetitiveKeys:
             self.valueDataType = None
-            return utils.generateErrorTag(",".join(elemList),"Dictionary has repeated key")
+            return utils.generateErrorTag(",".join(elemList),"Dicionário tem chave repetida")
 
         self.valueSize = len(elemList)
 
         if len(valueDataType) > 1 or len(keyDataType) > 1:
             self.valueDataType = None
-            return utils.generateErrorTag(",".join(elemList),"Data types of dictionary are not uniform")
+            return utils.generateErrorTag(",".join(elemList),"Tipos do dicionário não são uniformes")
 
         elif len(valueDataType) == 0 or len(keyDataType) == 0:
             self.valueDataType = None
@@ -316,8 +306,8 @@ class MainInterpreter (Interpreter):
         varName = self.visit(tree.children[0])
 
         if varName not in self.variables:
-            self.errors.append("Undeclared variable \"" + varName + "\"")
-            varName = utils.generateErrorTag(varName,"Undeclared variable")
+            self.errors.append("Variável \"" + varName + "\" não declarada")
+            varName = utils.generateErrorTag(varName,"Variável não declarada")
 
             self.valueDataType = ''
             self.valueSize = 0
@@ -327,8 +317,8 @@ class MainInterpreter (Interpreter):
         value = self.variables[varName]
 
         if value["state"][1] == False:
-            self.errors.append("Unassigned variable \"" + varName + "\"")
-            varName = utils.generateErrorTag(varName,"Unassigned variable")
+            self.errors.append("Variável \"" + varName + "\" não atribuída")
+            varName = utils.generateErrorTag(varName,"Variável não atribuída")
 
             self.valueDataType = ''
             self.valueSize = 0
@@ -368,42 +358,35 @@ class MainInterpreter (Interpreter):
         return str(tree.children[0])
     
     def code(self,tree):
+        self.ifData = None
         r=list()
         for child in tree.children:
             r.append(self.visit(child))
         return r
 
-    def instruction_atribution(self,tree):
-        r=""
-
-        for child in tree.children:
-            r+=self.visit(child)
-        
-        return r
-    
-
-    def instruction_condition(self,tree):
-        self.nmrCond+=1
-        self.nmrRead+=1
-
-        
-        return self.visit(tree.children[0])
-    
-    def instruction_cycle(self,tree):
-        self.nmrCycle+=1
+    def instruction(self,tree):
         return self.visit(tree.children[0])
 
     def atribution(self,tree):
-        self.nmrWrite += 1
-        self.nmrAtrib+=1
 
         ident = (self.identLevel * identNumber * " ")
                
         varName = self.visit(tree.children[0])
-    
+
         exp = self.visit(tree.children[1])
 
+        if varName not in self.variables:
+            self.errors.append("Variável \"" + varName + "\" atribuida mas não declarada")
+            varName = utils.generateErrorTag(varName,"Variável \"" + varName + "\" atribuída mas não declarada")
+        
+        elif not re.search(r'error',exp): 
+            self.variables[varName]["state"][1] = True
+            self.numInstructions['write'] += 1
+            self.numInstructions['atribution'] += 1
+
         atrStr = f"{varName} = {exp};"
+
+        self.codeData = atrStr
         
         return utils.generatePClassCodeTag(ident + atrStr)
 
@@ -413,53 +396,48 @@ class MainInterpreter (Interpreter):
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
-        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+            self.numInstructions['nestedControl'] +=1
 
         self.identLevel += 1
-        self.numberIfs += 1
+        self.numInstructions['condition'] += 1
 
         # Cálculo da identação para pretty printing
         ident = (identDepth * identNumber * " ")
+
         cond = self.visit(tree.children[0])
+
         code = self.visit(tree.children[1])
 
-        
-        if (len(tree.children[1].children) == 1 and tree.children[1].children[0].children[0].data=="condition"):
+        printCond = cond
+
+        if self.ifData is not None and len(tree.children[1].children) == 1:
+            cond = f'{cond} && {self.ifData[0]}'
+            code = self.ifData[1]
+            printCond = utils.generateSubTag(cond,"If conjugado")
+            self.numInstructions['nestedControl'] -= 1
+            self.numInstructions['condition'] -= 1
             
-            self.replaceable= True
-            taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth)+ " " +utils.generateSubTag("Pode ser substituido"))
-            taggedCode += ''.join(code)
-            taggedCode +=utils.generatePClassCodeTag(ident + "}")
 
-            self.identLevel = identDepth
-            self.controlDepth = controlDepth
+        self.ifData = (cond,code)
 
-            return taggedCode
-            
-        else:
-            
-            self.replaceable= False
-            taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { //controlLevel: "+str(controlDepth))
-            taggedCode += ''.join(code)
-            taggedCode +=utils.generatePClassCodeTag(ident + "}")
+        taggedCode = utils.generatePClassCodeTag(ident + "if( "+printCond+") { // nivelDeControlo: "+str(controlDepth))
+        taggedCode += ''.join(code)
+        taggedCode +=utils.generatePClassCodeTag(ident + "}")
 
-            self.identLevel = identDepth
-            self.controlDepth = controlDepth
+        self.identLevel = identDepth
+        self.controlDepth = controlDepth
 
-            return taggedCode
+        return taggedCode
 
     def condition_else(self,tree):
-
         identDepth = self.identLevel
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
-        self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
+            self.numInstructions['nestedControl'] +=1
 
         self.identLevel += 1
-        self.numberIfs += 1
+        self.numInstructions['condition'] += 1
 
         cond = self.visit(tree.children[0])
         code = self.visit(tree.children[1])
@@ -469,10 +447,10 @@ class MainInterpreter (Interpreter):
         ident = (identDepth * identNumber * " ")
 
 
-        taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { // controlLevel: "+str(controlDepth))
+        taggedCode = utils.generatePClassCodeTag(ident + "if( "+cond+") { // nivelDeControlo: "+str(controlDepth))
         taggedCode += ''.join(code)
         taggedCode +=utils.generatePClassCodeTag(ident + "}")
-        taggedCode +=utils.generatePClassCodeTag(ident + "else { // controlLevel: " + str(controlDepth))
+        taggedCode +=utils.generatePClassCodeTag(ident + "else { // nivelDeControlo: " + str(controlDepth))
         taggedCode += ''.join(elseCode)
         taggedCode +=utils.generatePClassCodeTag(ident + "}")
 
@@ -482,6 +460,7 @@ class MainInterpreter (Interpreter):
         return taggedCode
 
     def cycle(self,tree):
+        self.numInstructions['cycle'] += 1
         return self.visit(tree.children[0])
 
     def while_cycle(self,tree):
@@ -489,7 +468,7 @@ class MainInterpreter (Interpreter):
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
+            self.numInstructions['nestedControl'] +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
         self.identLevel +=1
@@ -501,7 +480,7 @@ class MainInterpreter (Interpreter):
         code=self.visit(tree.children[1])
         
         
-        taggedCode = utils.generatePClassCodeTag(ident + "while(" + bool + ") { //controlLevel: "+ str(controlDepth))
+        taggedCode = utils.generatePClassCodeTag(ident + "while(" + bool + ") { //nivelDeControlo: "+ str(controlDepth))
         taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident +"}")
         
@@ -514,7 +493,7 @@ class MainInterpreter (Interpreter):
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
+            self.numInstructions['nestedControl'] +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
         self.identLevel +=1
@@ -525,7 +504,7 @@ class MainInterpreter (Interpreter):
         code=self.visit(tree.children[0])
         bool=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag(ident + "do { //controlLevel: "+str(controlDepth))
+        taggedCode = utils.generatePClassCodeTag(ident + "do { //nivelDeControlo: "+str(controlDepth))
         taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident + "} while("+bool+")")
         
@@ -539,7 +518,7 @@ class MainInterpreter (Interpreter):
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
+            self.numInstructions['nestedControl'] +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
         self.identLevel +=1
@@ -550,7 +529,7 @@ class MainInterpreter (Interpreter):
         mat=self.visit(tree.children[0])
         code=self.visit(tree.children[1])
 
-        taggedCode = utils.generatePClassCodeTag(ident + "repeat(" + mat + ") { //controlLevel: " + str(controlDepth))
+        taggedCode = utils.generatePClassCodeTag(ident + "repeat(" + mat + ") { //nivelDeControlo: " + str(controlDepth))
         taggedCode += ''.join(code)
         taggedCode += utils.generatePClassCodeTag(ident + "}")
         
@@ -566,37 +545,33 @@ class MainInterpreter (Interpreter):
         controlDepth = self.controlDepth
         self.controlDepth += 1
         if(controlDepth>0):
-            self.controlInside +=1
+            self.numInstructions['nestedControl'] +=1
         self.maxcontrolDepth = self.maxcontrolDepth if self.maxcontrolDepth > controlDepth else controlDepth
 
         self.identLevel +=1
         
         # Cálculo da identação para pretty printing
         ident = (identDepth* identNumber * " ")
-        
-        size = len(tree.children)
-        insidePar = "<p class=\"code\">\n"
-        for i in range(size-1):
-            getCode = self.visit(tree.children[i])
-            findCode = re.search(r"\<p class=\"code\"\>\n\s*((.*))\n\<\/p\>",getCode)
-            if findCode:
-                if i == size-2:
-                    sub=findCode.group(1).replace(";","")
-                    insidePar += sub
-                else:
-                    insidePar += findCode.group(1)
-                    
-            else:
-                if(not i==size-2):
-                    insidePar += getCode
-                    insidePar +=";"
-       
-        insidePar = insidePar.replace(";;",";")
 
-        code=self.visit(tree.children[size-1])
+        childInfo = [None,None,None,None]
 
-        taggedCode = utils.generatePClassCodeTag(ident + "for(" + insidePar + ") { // controlLevel: " + str(controlDepth))
-        taggedCode += ''.join(code)
+        for child in tree.children:
+            if child.data == "atribution" and childInfo[0] is None:
+                self.visit(child)
+                childInfo[0] = self.codeData[:-1]
+            elif child.data == "atribution" and childInfo[0] is not None:
+                self.visit(child)
+                childInfo[2] = self.codeData[:-1]
+            elif child.data == 'boolexpr':
+                self.visit(child)
+                childInfo[1] = self.codeData[:-1]
+            elif child.data == 'code':
+                childInfo[3] = self.visit(child)
+
+        insidePar = f'{"" if childInfo[0] is None else childInfo[0]};{"" if childInfo[1] is None else childInfo[1]};{"" if childInfo[2] is None else childInfo[2]}'
+
+        taggedCode = utils.generatePClassCodeTag(ident + "for(" + insidePar + ") { //nivelDeControlo: " + str(controlDepth))
+        taggedCode += ''.join(childInfo[3])
         taggedCode += utils.generatePClassCodeTag(ident + "}")
         
         self.identLevel = identDepth
@@ -604,16 +579,9 @@ class MainInterpreter (Interpreter):
 
 
         return taggedCode
-        
-
-    def expression_var(self,tree):
-        return self.visit(tree.children[0])
 
 
-    def expression_boolexpr(self,tree):
-        return self.visit(tree.children[0])
-
-    def expression_matexpr(self,tree):
+    def expression(self,tree):
         return self.visit(tree.children[0])
 
     def matexpr(self,tree):
@@ -641,6 +609,8 @@ class MainInterpreter (Interpreter):
                 r+=self.visit(child)+" "
             else:
                 r+=child+" "
+
+        self.codeData = r
         
         return r
 
@@ -649,8 +619,16 @@ class MainInterpreter (Interpreter):
         value=self.visit(tree.children[0])
         
         if(tree.children[0].data=="var"):
-            if value not in self.variables or self.variables[value]["state"][0]==False:
-                errors.append("Variable \"" + value + "\" used but not initialized")
+            if value not in self.variables:
+                errors.append("Variável \"" + value + "\" usada mas não declarada")
+
+            elif self.variables[value]["state"][1] == False:
+                errors.append("Variável \"" + value + "\" usada mas não inicializada")
+
+            else:
+                self.variables[value]["state"][2] = True
+                self.numInstructions['read'] += 1
+        
             
         if errors:
             self.errors.extend(errors)
@@ -659,82 +637,36 @@ class MainInterpreter (Interpreter):
         return value
 
     def value_string(self,tree):
+        self.valueDataType = "str"
         return str(tree.children[0])
 
     def value_float(self,tree):
+        self.valueDataType = "float"
         return str(tree.children[0])
 
     def value_int(self,tree):
+        self.valueDataType = "int"
         return str(tree.children[0])
 
     def value_bool(self,tree):
+        self.valueDataType = "bool"
         return str(tree.children[0])
 
     def var(self,tree):
-        errors = []
-        word = tree.children[0]
-        if word in self.variables:
-            self.variables[word]["state"][2] = True
-            
+        varName = str(tree.children[0])
+        retStr = varName
+
+        if(len(tree.children) > 1):
+            operand = self.visit(tree.children[1])
+            if self.valueDataType != "int":
+                self.errors.append("Índice não é do tipo int")
+                operand = utils.generateErrorTag(operand,"Índice não é do tipo int")
+            retStr += '[' + operand + ']'
+
+        if varName not in self.variables:
+            self.valueDataType = None
         else:
-            value = dict()
-            value["state"] = [False,False,True]
-            value["size"]=0
-            value["datatype"]= None
-            value["type"] = None
-            value["keys"] = []
-            self.variables[word] = value
-        
-        value = self.variables[word]
-        if value["state"][1]==False and value["state"][2]==True:
-            errors.append("Variable \"" + word +"\" used but not initialized")
+            self.valueDataType = self.variables[varName]["datatype"]
 
-        if value["state"][0]==False and value["state"][2]==True:
-            errors.append("Variable \"" + word +"\" used but not declared")
-
-
-        if errors:
-            self.errors.extend(errors)
-            word = utils.generateErrorTag(word,";".join(errors))
-        return word
-
-    def var_struct(self,tree):
-        errors = []
-        word = tree.children[0]
-        ind = tree.children[1]
-
-        if word in self.variables:
-            self.variables[word]["state"][2] = True
-        else:
-            value = dict()
-            value["state"] = [False,False,True]
-            value["size"]=0
-            value["datatype"]= None
-            value["type"] = None
-            value["keys"] = []
-            self.variables[word] = value
-        
-        value = self.variables[word]
-        if(not value["type"] == None):
-            if value["type"]=="dict":
-                if not ind in value["keys"]:
-                    errors.append("Key \""+ind+"\" doesn't exist in variable \""+word+"\"")
-            elif not value["type"]=="atomic":
-                if ind < value["size"] and ind>=0:
-                    errors.append("Index \""+ind+"\" doesn't exist in variable \""+word+"\"")
-        
-
-        if value["state"][1]==False and value["state"][2]==True:
-            errors.append("Variable \"" + word +"\" used but not initialized")
-
-        if value["state"][0]==False and value["state"][2]==True:
-            errors.append("Variable \"" + word +"\" used but not declared")
-
-
-        if errors:
-            self.errors.extend(errors)
-            word = utils.generateErrorTag(word,";".join(errors))
-        ret = f"{word}[{ind}]"
-
-        return ret
+        return retStr
     

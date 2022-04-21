@@ -26,10 +26,9 @@ teste = di[1];
 if(cond > 0 + 1 && a + 1 == 0 || cond < 2) {
     if(y[0] > 1) { 
         if(z > 2) { 
-            z = 1; k = 3;
-        }
-        else{
-            a=0;
+            if(z > 3) {
+                z = 1; k = 3;
+            }
         }
     }
     while(cond > 0) {
@@ -54,11 +53,11 @@ parse_tree = p.parse(phrase)
 data = MainInterpreter().visit(parse_tree)
 
 
-print("Número de estruturas de controlo aninhadas:"+str(data["controlInside"]))
+# print("Número de estruturas de controlo aninhadas:"+str(data["controlInside"]))
 
 #print(data["html"])
 
-import json
+# import json
 
 #print(json.dumps(data['vars'],sort_keys=True, indent=4))
 

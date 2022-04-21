@@ -3,15 +3,15 @@ grammar = '''
 start: code*
 code: (declaration | instruction)+
 
-instruction: atribution ";" -> instruction_atribution
-           | condition      -> instruction_condition
-           | cycle          -> instruction_cycle
+instruction: atribution ";"
+           | condition     
+           | cycle          
 
-atribution: var "=" expression 
+atribution: var "=" (expression | list | tuple | set | dict)
 
 
 var: WORD              
-   | WORD "[" INT "]"   -> var_struct
+   | WORD "[" operand "]"
 
 condition: "if" "(" boolexpr ")" "{" code "}"                       
          | "if" "(" boolexpr ")" "{" code "}" "else" "{" code "}"   -> condition_else
@@ -26,13 +26,14 @@ do_while_cycle: "do" "{" code "}" "while" "(" boolexpr ")"
 repeat_cycle: "repeat" "(" matexpr ")" "{" code "}"
 for_cycle: "for" "(" atribution? ";" boolexpr? ";" atribution? ")" "{" code "}"
 
-expression: operand     -> expression_var
-          | boolexpr    -> expression_boolexpr
-          | matexpr     -> expression_matexpr
+expression: boolexpr 
+          | matexpr  
 
-matexpr: operand (MAT_OPERATOR operand)+
+matexpr: operand (MAT_OPERATOR operand)*
 
-simple_bool_expr: (operand | matexpr) BOOL_OPERATOR (operand | matexpr)
+simple_bool_expr: matexpr BOOL_OPERATOR matexpr
+                | BOOL
+
 boolexpr: simple_bool_expr (LOGIC simple_bool_expr)*
 
 BOOL_OPERATOR: ">"|"<"|">="|"<="|"=="|"!="
@@ -56,5 +57,5 @@ value: ESCAPED_STRING   -> value_string
 %import common.WORD
 %import common.FLOAT
 %import common.ESCAPED_STRING
-%import .grammar.declarations  (declaration,BOOL,TYPE)
+%import .grammar.declarations  (declaration,BOOL,TYPE,set,tuple,dict,list)
 '''

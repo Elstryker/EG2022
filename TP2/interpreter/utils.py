@@ -6,10 +6,10 @@ def generateErrorTag(text, errorMessage="Erro na variável"):
 
     return retStr
 
-def generateSubTag(text,subMessage="IF conjugado"):
+def generateSubTag(text,subMessage="If conjugado"):
     retStr = '<div class="sub">'
     retStr += text
-    retStr += f'<span class="subtext">${subMessage}</span></div>'
+    retStr += f'<span class="subtext">{subMessage}</span></div>'
     return retStr
 
 
@@ -21,6 +21,55 @@ def generatePClassCodeTag(text):
 </p>'''
 
     return retStr
+
+def generateHTMLStatReport(numDeclaredVars,errors,warnings,numInstructions):
+    html = f'''<h1>Code Statistical Report</h1>
+    <h2>Número de variáveis declaradas</h2>
+    <ul>
+        <li>Atómicas: {numDeclaredVars['atomic']}</li>
+        <li>Conjuntos: {numDeclaredVars['set']}</li>
+        <li>Listas: {numDeclaredVars['list']}</li>
+        <li>Tuplos: {numDeclaredVars['tuple']}</li>
+        <li>Dicionários: {numDeclaredVars['dict']}</li>
+        <li>Total: {numDeclaredVars['atomic'] + numDeclaredVars['set'] + numDeclaredVars['list'] + numDeclaredVars['tuple'] + numDeclaredVars['dict']}</li>
+    </ul>
+    <br>
+    <h2>Número de Instruções</h2>
+    <ul>
+        <li>Atribuições: {numInstructions['atribution']}</li>
+        <li>Leituras: {numInstructions['read']}</li>
+        <li>Escritas: {numInstructions['write']}</li>
+        <li>Condicionais: {numInstructions['condition']}</li>
+        <li>Cíclicas: {numInstructions['cycle']}</li>
+        <li>Controlo Aninhadas: {numInstructions['nestedControl']}</li>
+        <li>Total: {numInstructions['atribution'] + numInstructions['read'] + numInstructions['write'] + numInstructions['condition'] + numInstructions['cycle']}</li>
+    </ul>
+    <br>
+    <h2>Erros</h2>
+    <ul>'''
+
+    for error in errors:
+        html += f'''
+        <li>{error}</li>'''
+
+    html += '''
+    </ul>
+    <br>
+    <h2>Warnings</h2>
+    <ul>'''
+
+    for warning in warnings:
+        html += f'''
+        <li>{warning}</li>'''
+
+    html += '''
+    </ul>'''
+
+    return html
+
+
+
+    
 
 def generateCSS():
     retStr = '''
@@ -58,7 +107,7 @@ def generateCSS():
         content: "";
         position: absolute;
         top: 100%;
-        left: 20%;
+        left: 8%;
         margin-left: -5px;
         border-width: 5px;
         border-style: solid;
@@ -88,7 +137,7 @@ def generateCSS():
         padding: 5px 0;
         position: absolute;
         z-index: 1;
-        bottom: 125%;
+        bottom: 300%;
         left: 50%;
         margin-left: -40px;
         opacity: 0;
@@ -99,7 +148,7 @@ def generateCSS():
         content: "";
         position: absolute;
         top: 100%;
-        left: 20%;
+        left: 8%;
         margin-left: -5px;
         border-width: 5px;
         border-style: solid;
@@ -114,7 +163,7 @@ def generateCSS():
 
     return retStr
 
-def generateHTML(body):
+def generateHTML(body,report):
 
     html = '''<!DOCTYPE html>
 <html>'''
@@ -133,7 +182,11 @@ def generateHTML(body):
 
     html += '''
 
-</code></pre>
+    </code></pre>'''
+
+    html += report
+
+    html += '''
 </body>
 
 </html>'''
