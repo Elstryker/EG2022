@@ -15,6 +15,7 @@ class MainInterpreter (Interpreter):
         self.warnings = []
         self.errors = []
         self.valueDataType = None
+        self.valueType = None
         self.valueSize = 0
         self.numDeclaredVars = {'atomic':0,'set':0,'list':0,'tuple':0,'dict':0}
         self.numInstructions = {'atribution':0,'read':0,'write':0,'condition':0,'cycle':0,'nestedControl':0}
@@ -65,6 +66,7 @@ class MainInterpreter (Interpreter):
             value["state"] = [True,False,False]
             value["size"] = 0
             value["datatype"] = dataType
+            value["type"] = type
             self.variables[varName] = value
 
         else:
@@ -91,10 +93,12 @@ class MainInterpreter (Interpreter):
                 value["state"][1] = True
 
             self.valueDataType = None # Useless but for bug-free programming
+            self.valueType = None
             self.valueSize = 0 # Useless but for bug-free programming
 
             if errors:
                 self.errors.extend(errors)
+                self.variables.pop(varName)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
             code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName} = {operand};"
@@ -103,6 +107,7 @@ class MainInterpreter (Interpreter):
 
             if errors:
                 self.errors.extend(errors)
+                self.variables.pop(varName)
                 varName = utils.generateErrorTag(varName,";".join(errors))
 
             code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName};"
@@ -142,6 +147,7 @@ class MainInterpreter (Interpreter):
             value["state"] = [True,False,False]
             value["size"] = 0
             value["datatype"] = (keyDataType,valueDataType)
+            value["type"] = 'dict'
             self.variables[varName] = value
 
         else:
@@ -195,22 +201,22 @@ class MainInterpreter (Interpreter):
 
     def set(self,tree):
         #print("set")
-        self.valueDataType = 'set'
+        self.valueType = 'set'
         return f"{{{self.visit(tree.children[0])}}}"
 
     def list(self,tree):
         #print("list")
-        self.valueDataType = 'list'
+        self.valueType = 'list'
         return f"[{self.visit(tree.children[0])}]"
 
     def tuple(self,tree):
         #print("tuple")
-        self.valueDataType = 'tuple'
+        self.valueType = 'tuple'
         return f"({self.visit(tree.children[0])})"
 
     def dict(self,tree):
         #print("dict")
-        self.valueDataType = 'dict'
+        self.valueType = 'dict'
         return f"{{{self.visit(tree.children[0])}}}"
 
     def grammar__declarations__list_contents(self,tree):
@@ -359,6 +365,7 @@ class MainInterpreter (Interpreter):
     
     def code(self,tree):
         self.ifData = None
+        self.valueType = None
         r=list()
         for child in tree.children:
             r.append(self.visit(child))
@@ -375,9 +382,16 @@ class MainInterpreter (Interpreter):
 
         exp = self.visit(tree.children[1])
 
+        if self.valueType is None:
+            self.valueType = 'atomic'
+
         if varName not in self.variables:
             self.errors.append("Variável \"" + varName + "\" atribuida mas não declarada")
             varName = utils.generateErrorTag(varName,"Variável \"" + varName + "\" atribuída mas não declarada")
+
+        elif self.variables[varName]['type'] != self.valueType or self.variables[varName]['datatype'] != self.valueDataType:
+            self.errors.append("Tipos incompatíveis na atribuição de um valor à variável \"" + varName + "\"")
+            varName = utils.generateErrorTag(varName,"Tipos incompatíveis na atribuição")
         
         elif not re.search(r'error',exp): 
             self.variables[varName]["state"][1] = True
@@ -667,6 +681,8 @@ class MainInterpreter (Interpreter):
             self.valueDataType = None
         else:
             self.valueDataType = self.variables[varName]["datatype"]
+            self.valueType = self.variables[varName]["type"]
+
 
         return retStr
     
