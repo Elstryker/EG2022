@@ -11,11 +11,7 @@ str a = "1";
 str b = a;
 str ggg;
 int b;
-int z;
-
 str gh = ggg;
-
-int set c;
 str set guy = {"on","tw","th","fo"};
 float tuple tu = (1.2,2.,3.);
 (int,str) dict di = {3:"ro",6:"he",7:"ko",9:"o"};

@@ -100,6 +100,8 @@ class MainInterpreter (Interpreter):
                 self.errors.extend(errors)
                 self.variables.pop(varName)
                 varName = utils.generateErrorTag(varName,";".join(errors))
+            else:
+                self.numInstructions['write']+=value["size"]
 
             code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName} = {operand};"
 
@@ -118,23 +120,18 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__atomic_declaration(self,tree):
-        #print("atomic_decl_init")
         return self.__generalDeclarationVisitor(tree,"atomic")
 
     def grammar__declarations__set_declaration(self,tree):
-        #print("set_declaration")
         return self.__generalDeclarationVisitor(tree,"set")
 
     def grammar__declarations__list_declaration(self,tree):
-        #print("list_declaration")
         return self.__generalDeclarationVisitor(tree,"list")
 
     def grammar__declarations__tuple_declaration(self,tree):
-        #print("tuple_declaration")
         return self.__generalDeclarationVisitor(tree,"tuple")
 
     def grammar__declarations__dict_declaration(self,tree):
-        #print("dict_declaration")
         errors = []
         keyDataType = str(tree.children[0])
         valueDataType = str(tree.children[1])
@@ -179,6 +176,8 @@ class MainInterpreter (Interpreter):
             if errors:
                 self.errors.extend(errors)
                 varName = utils.generateErrorTag(varName,";".join(errors))
+            else:
+                self.numInstructions["write"] += value["size"]
 
             code = f"({keyDataType},{valueDataType}) dict {varName} = {operand};"
 
@@ -196,35 +195,28 @@ class MainInterpreter (Interpreter):
         return utils.generatePClassCodeTag(code)
 
     def grammar__declarations__var(self,tree):
-        #print("var")
         return str(tree.children[0])
 
     def set(self,tree):
-        #print("set")
         self.valueType = 'set'
         return f"{{{self.visit(tree.children[0])}}}"
 
     def list(self,tree):
-        #print("list")
         self.valueType = 'list'
         return f"[{self.visit(tree.children[0])}]"
 
     def tuple(self,tree):
-        #print("tuple")
         self.valueType = 'tuple'
         return f"({self.visit(tree.children[0])})"
 
     def dict(self,tree):
-        #print("dict")
         self.valueType = 'dict'
         return f"{{{self.visit(tree.children[0])}}}"
 
     def grammar__declarations__list_contents(self,tree):
-        #print("list_contents")
         return self.visit(tree.children[0])
 
     def grammar__declarations__int_contents(self,tree):
-        #print("int_contents")
         self.valueDataType = 'int'
         self.valueSize = len(tree.children)
         elemList = []
@@ -233,7 +225,6 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__float_contents(self,tree):
-        #print("float_contents")
         self.valueDataType = 'float'
         self.valueSize = len(tree.children)
         elemList = []
@@ -242,7 +233,6 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__string_contents(self,tree):
-        #print("string_contents")
         self.valueDataType = 'str'
         self.valueSize = len(tree.children)
         elemList = []
@@ -251,7 +241,6 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__bool_contents(self,tree):
-        #print("bool_contents")
         self.valueDataType = 'bool'
         self.valueSize = len(tree.children)
         elemList = []
@@ -260,7 +249,6 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__dict_contents(self,tree):
-        #print("dict_contents")
         keyDataType = set()
         valueDataType = set()
         repetitiveKeys = False
@@ -300,15 +288,12 @@ class MainInterpreter (Interpreter):
         return ",".join(elemList)
 
     def grammar__declarations__dict_value(self,tree):
-        #print("dict_value")
         return self.visit(tree.children[0])
 
     def grammar__declarations__operand_value(self,tree):
-        #print("operand_value")
         return self.visit(tree.children[0])
 
     def grammar__declarations__operand_var(self,tree):
-        #print("operand_var")
         varName = self.visit(tree.children[0])
 
         if varName not in self.variables:
@@ -340,25 +325,21 @@ class MainInterpreter (Interpreter):
         return varName
 
     def grammar__declarations__value_string(self,tree):
-        #print("value_string")
         self.valueDataType = "str"
         self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_float(self,tree):
-        #print("value_float")
         self.valueDataType = "float"
         self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_int(self,tree):
-        #print("value_int")
         self.valueDataType = "int"
         self.valueSize = 1
         return str(tree.children[0])
 
     def grammar__declarations__value_bool(self,tree):
-        #print("value_bool")
         self.valueDataType = 'bool'
         self.valueSize = 1
         return str(tree.children[0])
@@ -394,7 +375,7 @@ class MainInterpreter (Interpreter):
             varName = utils.generateErrorTag(varName,"Tipos incompatíveis na atribuição")
         
         elif not re.search(r'error',exp): 
-            self.variables[varName]["state"][1] = True
+            self.variables[varName]['state'][1] = True
             self.numInstructions['write'] += 1
             self.numInstructions['atribution'] += 1
 
