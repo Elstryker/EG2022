@@ -1,2 +1,2 @@
-# SPLN2022
-Trabalhos de grupo SPLN
+# EG2022
+Trabalhos de grupo EG
