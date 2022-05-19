@@ -1,0 +1,66 @@
+// Declarations
+
+declaration: atomic_declaration ";"
+           | set_declaration ";"
+           | list_declaration ";"
+           | tuple_declaration ";"
+           | dict_declaration ";"
+
+atomic_declaration: TYPE var            
+                  | TYPE var "=" operand
+
+set_declaration: TYPE "set" var         
+               | TYPE "set" var "=" set 
+
+list_declaration: TYPE "list" var          
+                | TYPE "list" var "=" list 
+
+tuple_declaration: TYPE "tuple" var           
+                 | TYPE "tuple" var "=" tuple
+
+dict_declaration: "(" TYPE "," TYPE ")" "dict" var         
+                | "(" TYPE "," TYPE ")" "dict" var "=" dict
+
+var: WORD
+
+TYPE: "int"  
+    | "float"
+    | "str"  
+    | "bool"
+
+set: "{" list_contents "}"
+list: "[" list_contents "]"
+tuple: "(" list_contents ")"
+dict: "{" dict_contents "}"
+
+list_contents: int_contents   
+             | float_contents 
+             | string_contents
+             | bool_contents  
+
+int_contents: INT ("," INT)*
+float_contents: FLOAT ("," FLOAT)*
+string_contents: ESCAPED_STRING ("," ESCAPED_STRING)*
+bool_contents: BOOL ("," BOOL)*
+
+dict_contents: value ":" operand ("," value ":" operand)*
+
+operand: value  -> operand_value
+       | var    -> operand_var
+
+value: ESCAPED_STRING   -> value_string
+     | FLOAT            -> value_float
+     | INT              -> value_int
+     | BOOL             -> value_bool
+
+BOOL: "True"
+    | "False"
+
+%import common.WS
+%import common.NEWLINE
+%ignore WS
+%ignore NEWLINE
+%import common.INT
+%import common.WORD
+%import common.FLOAT
+%import common.ESCAPED_STRING
