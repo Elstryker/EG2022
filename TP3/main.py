@@ -4,14 +4,11 @@ from lark.tree import pydot__tree_to_png
 
 from grammar.grammar import grammar
 from interpreter.interpreter import MainInterpreter
-from interpreter.interpreterGraph import MainInterpreterGraph
+from interpreter.interpreterCFG import MainInterpreterCFG
+from interpreter.interpreterSDG import MainInterpreterSDG
 
 phrase = """
 str a = "1";
-
-str b = a;
-str ggg;
-int lol;
 
 str lol = 5;
 
@@ -37,12 +34,14 @@ for(lol = 0; lol < 1; lol = lol + 1) {
 lol = 9;
 """
 
+"""
+"""
+
 p = Lark(grammar)
 
 parse_tree = p.parse(phrase)
 
-data = MainInterpreterGraph().visit(parse_tree)
-
+data = MainInterpreterSDG().visit(parse_tree)
 
 # print("Número de estruturas de controlo aninhadas:"+str(data["controlInside"]))
 
@@ -51,6 +50,5 @@ data = MainInterpreterGraph().visit(parse_tree)
 # import json
 
 #print(json.dumps(data['vars'],sort_keys=True, indent=4))
-
 
 # print(parse_tree.pretty())

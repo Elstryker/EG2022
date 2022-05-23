@@ -9,7 +9,7 @@ global identNumber
 identNumber = 4
 
 def createGraph(graph, graphMap):
-    dot = graphviz.Digraph('Control Flow Graph')
+    dot = graphviz.Digraph('System Dependency Graph')
 
     for i,node in enumerate(graph):
         dot.node(str(i),graphMap[i])
@@ -22,7 +22,7 @@ def createGraph(graph, graphMap):
     return dot
 
 
-class MainInterpreterGraph (Interpreter):
+class MainInterpreterSDG (Interpreter):
 
     def __init__(self):
         self.graph = []
@@ -30,27 +30,23 @@ class MainInterpreterGraph (Interpreter):
         self.nodeBefore = None
         self.nodeCount = 0
         self.graphNext = False
-
-        
+        self.connectParent = list()
 
     def start(self,tree):
         # Visita todos os filhos em que cada um vão retornar o seu código
-        self.graph.append(set())
-        self.nodeBefore = 0
-        self.graphMap[0] = 'start'
+        self.graph.append(list())
+        self.graphMap[0] = 'entry main'
         self.nodeCount = 1
+        self.connectParent.append(0)
 
         res = self.visit_children(tree)
 
-        self.graph.append(set())
-        self.graphMap[self.nodeCount] = 'stop'
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
+        print(self.graph)
+        print(self.graphMap)
+        
         graph = createGraph(self.graph, self.graphMap)
         graph.save()
 
-        print(self.graph)
-        print(self.graphMap)
         print(graph)
 
         output = dict()
@@ -70,8 +66,9 @@ class MainInterpreterGraph (Interpreter):
         varName = self.visit(tree.children[1])
         childNum = len(tree.children)
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
                 
         # if variable is assigned
         if childNum > 2:
@@ -87,7 +84,6 @@ class MainInterpreterGraph (Interpreter):
 
             code = f"{dataType}{'' if type == 'atomic' else ' ' + type} {varName};"
 
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         return code
@@ -110,8 +106,9 @@ class MainInterpreterGraph (Interpreter):
         varName = self.visit(tree.children[2])
         childNum = len(tree.children)
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+        
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
                 
         # if variable is assigned
         if childNum > 3:
@@ -128,7 +125,6 @@ class MainInterpreterGraph (Interpreter):
 
             code = f"({keyDataType},{valueDataType}) dict {varName};"
 
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         return code
@@ -222,12 +218,12 @@ class MainInterpreterGraph (Interpreter):
 
         exp = self.visit(tree.children[1])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+        
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
         self.graphMap[self.nodeCount] = f"{varName} = {exp}"
 
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         atrStr = f"{varName} = {exp};"
@@ -238,27 +234,26 @@ class MainInterpreterGraph (Interpreter):
     def condition(self,tree):
         cond = self.visit(tree.children[0])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
 
-        self.graphMap[self.nodeCount] = "if( "+cond+" )"
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
-        currentNode = self.nodeCount
+        self.graphMap[self.nodeCount] = "if "+cond
 
-        self.nodeBefore = self.nodeCount
+        ifNodeCount = self.nodeCount
+
+        self.nodeCount += 1
+
+        self.graph.append(list())
+        self.graph[ifNodeCount].append(self.nodeCount)
+        self.graphMap[self.nodeCount] = "then"
+        self.connectParent.append(self.nodeCount)
+
         self.nodeCount += 1
 
         code = self.visit(tree.children[1])
 
-        self.graph[currentNode].add(self.nodeCount)
-
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
-        self.graphMap[self.nodeCount] = "end if"
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
+        self.connectParent.pop()
 
         taggedCode = "if("+cond+") {"
         taggedCode += ''.join(code)
@@ -269,35 +264,37 @@ class MainInterpreterGraph (Interpreter):
     def condition_else(self,tree):
         cond = self.visit(tree.children[0])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
 
-        self.graphMap[self.nodeCount] = "if( "+cond+" )"
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
+        self.graphMap[self.nodeCount] = "if "+cond
 
-        currentNode = self.nodeCount
+        ifNodeCount = self.nodeCount
 
-        self.nodeBefore = self.nodeCount
+        self.nodeCount += 1
+
+        self.graph.append(list())
+        self.graph[ifNodeCount].append(self.nodeCount)
+        self.graphMap[self.nodeCount] = "then"
+        self.connectParent.append(self.nodeCount)
+
         self.nodeCount += 1
 
         code = self.visit(tree.children[1])
 
-        trueNode = self.nodeBefore
+        self.connectParent.pop()
 
-        self.graph[currentNode].add(self.nodeCount)
+        self.graph.append(list())
+        self.graph[ifNodeCount].append(self.nodeCount)
+        self.graphMap[self.nodeCount] = "else"
+        self.connectParent.append(self.nodeCount)
 
-        self.nodeBefore = currentNode
+        self.nodeCount += 1
 
         elseCode = self.visit(tree.children[2])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-        self.graph[trueNode].add(self.nodeCount)
+        self.connectParent.pop()
 
-        self.graphMap[self.nodeCount] = "end if"
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
-        
         returnCode = ("if( "+cond+") {")
         returnCode += ''.join(code)
         returnCode +=("}")
@@ -313,25 +310,18 @@ class MainInterpreterGraph (Interpreter):
     def while_cycle(self,tree):
         bool=self.visit(tree.children[0])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
-        self.graphMap[self.nodeCount] = "while( "+bool+" )"
+        self.graphMap[self.nodeCount] = "while "+ bool
+        self.connectParent.append(self.nodeCount)
 
-        currentNode = self.nodeCount
-
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         code=self.visit(tree.children[1])
-        
-        self.graph[self.nodeBefore].add(currentNode)
-        self.graph[currentNode].add(self.nodeCount)
 
-        self.graph.append(set())
-        self.graphMap[self.nodeCount] = "end while"
+        self.connectParent.pop()
 
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         returnCode = "while(" + bool + ") {"
@@ -342,37 +332,19 @@ class MainInterpreterGraph (Interpreter):
 
     def do_while_cycle(self,tree):
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
-        self.graphMap[self.nodeCount] = "do"
+        bool=self.visit(tree.children[1])
 
-        currentNode = self.nodeCount
+        self.graphMap[self.nodeCount] = "do_while " + bool
 
-        self.nodeBefore = self.nodeCount
+        self.connectParent.append(self.nodeCount)
         self.nodeCount += 1
 
         code=self.visit(tree.children[0])
 
-        bool=self.visit(tree.children[1])
-
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
-        self.graphMap[self.nodeCount] = "while( "+bool+" )"
-
-        self.graph[self.nodeCount].add(currentNode)
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
-
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
-        self.graphMap[self.nodeCount] = "end do while"
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
+        self.connectParent.pop()
 
         returnCode = "do {"
         returnCode += ''.join(code)
@@ -383,26 +355,18 @@ class MainInterpreterGraph (Interpreter):
     def repeat_cycle(self,tree):
         mat=self.visit(tree.children[0])
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graph.append(list())
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
         self.graphMap[self.nodeCount] = "repeat " + mat
 
-        currentNode = self.nodeCount
-
-        self.nodeBefore = self.nodeCount
+        self.connectParent.append(self.nodeCount)
         self.nodeCount += 1
 
         code=self.visit(tree.children[1])
 
-        self.graph[self.nodeBefore].add(currentNode)
+        self.connectParent.pop()
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
-        self.graphMap[self.nodeCount] = "end repeat"
-
-        self.nodeBefore = self.nodeCount
         self.nodeCount += 1
 
         returnCode = "repeat(" + mat + ") {"
@@ -412,42 +376,22 @@ class MainInterpreterGraph (Interpreter):
         return returnCode
         
     def for_cycle(self,tree):
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
-
-        self.graphMap[self.nodeCount] = "for"
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
+        self.graph.append(list())
+        self.graph[self.connectParent[-1]].append(self.nodeCount)
 
         childInfo = [None,None,None,None]
-
-        childInfo[0] = self.visit(tree.children[0]) # Atribution 1
         childInfo[1] = self.visit(tree.children[1]) # Condition
 
-        self.graph.append(set())
-        self.graph[self.nodeBefore].add(self.nodeCount)
+        self.graphMap[self.nodeCount] = "for " + childInfo[1]
 
-        self.graphMap[self.nodeCount] = childInfo[1]
-
-        conditionNode = self.nodeCount
-
-        self.nodeBefore = self.nodeCount
+        self.connectParent.append(self.nodeCount)
         self.nodeCount += 1
 
+        childInfo[0] = self.visit(tree.children[0]) # Atribution 1
         childInfo[3] = self.visit(tree.children[3]) # Code
-
         childInfo[2] = self.visit(tree.children[2]) # Atribution 2
 
-        self.graph[self.nodeBefore].add(conditionNode)
-        self.graph[conditionNode].add(self.nodeCount)
-
-        self.graph.append(set())
-
-        self.graphMap[self.nodeCount] = "end for"
-
-        self.nodeBefore = self.nodeCount
-        self.nodeCount += 1
+        self.connectParent.pop()
 
         insidePar = f'{"" if childInfo[0] is None else childInfo[0]};{"" if childInfo[1] is None else childInfo[1]};{"" if childInfo[2] is None else childInfo[2]}'
 

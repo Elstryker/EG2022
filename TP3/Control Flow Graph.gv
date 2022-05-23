@@ -1,0 +1,41 @@
+digraph "System Dependency Graph" {
+	0 [label="entry main"]
+	0 -> 1
+	0 -> 2
+	0 -> 3
+	0 -> 4
+	0 -> 14
+	0 -> 19
+	1 [label="str a = \"1\""]
+	2 [label="str lol = 5"]
+	3 [label="int hh = 1"]
+	4 [label="if z < a "]
+	4 -> 5
+	4 -> 11
+	5 [label=then]
+	5 -> 6
+	6 [label="if z < 1 "]
+	6 -> 7
+	7 [label=then]
+	7 -> 8
+	7 -> 9
+	7 -> 10
+	8 [label="lol = 2"]
+	9 [label="lol = 3"]
+	10 [label="lol = 4"]
+	11 [label=else]
+	11 -> 12
+	11 -> 13
+	12 [label="lol = 7"]
+	13 [label="lol = 8"]
+	14 [label="for lol < 1 "]
+	14 -> 15
+	14 -> 16
+	14 -> 17
+	14 -> 18
+	15 [label="lol = 0"]
+	16 [label="lol = 4"]
+	17 [label="lol = 5"]
+	18 [label="lol = lol+1"]
+	19 [label="lol = 9"]
+}
