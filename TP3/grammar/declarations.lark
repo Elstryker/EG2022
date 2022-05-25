@@ -53,8 +53,8 @@ value: ESCAPED_STRING   -> value_string
      | INT              -> value_int
      | BOOL             -> value_bool
 
-BOOL: "True"
-    | "False"
+BOOL: "True"i
+    | "False"i
 
 %import common.WS
 %import common.NEWLINE

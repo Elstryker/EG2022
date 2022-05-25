@@ -37,6 +37,7 @@ class MainInterpreter (Interpreter):
         statReport = utils.generateHTMLStatReport(self.numDeclaredVars,self.errors,self.warnings,self.numInstructions)
 
         utils.generateHTML(''.join(res[0]),statReport)
+        
 
         output = dict()
         # Juntar o código dos vários blocos
@@ -589,12 +590,14 @@ class MainInterpreter (Interpreter):
         return r
 
     def simple_bool_expr(self,tree):
-        left = self.visit(tree.children[0])
-        center = tree.children[1]
-        right = self.visit(tree.children[2])
+        r=""
+        for child in tree.children:
+            if(isinstance(child,Tree)):
+                r+=self.visit(child)+" "
+            else:
+                r+=child+" "
         
-
-        return f"{left} {center} {right}"
+        return r
 
 
     def boolexpr(self,tree):

@@ -6,19 +6,20 @@ from grammar.grammar import grammar
 from interpreter.interpreter import MainInterpreter
 from interpreter.interpreterCFG import MainInterpreterCFG
 from interpreter.interpreterSDG import MainInterpreterSDG
-
+import interpreter.utils as utils
 phrase = """
 str a = "1";
 
 str lol = 5;
 
-int hh = 1;
-
-if(z < a) {
-    if( z < 1 ) {
+if(False && 1 < 2) {
+    if(z < a) {
         lol = 2;
         lol = 3;
         lol = 4;
+    }
+    else{
+        lol=5;
     }
 }
 else {
@@ -26,12 +27,14 @@ else {
     lol = 8;
 }
 
-for(lol = 0; lol < 1; lol = lol + 1) {
+for(lol = 0; False; lol = lol + 1) {
     lol = 4;
     lol = 5;
 }
+while(1>2 || 3>4 || ze<xico){
+    sera=1;
+}
 
-lol = 9;
 """
 
 """
@@ -40,15 +43,8 @@ lol = 9;
 p = Lark(grammar)
 
 parse_tree = p.parse(phrase)
+cfg = MainInterpreterCFG().visit(parse_tree)
+sdg = MainInterpreterSDG().visit(parse_tree)
+data = MainInterpreter().visit(parse_tree)
 
-data = MainInterpreterSDG().visit(parse_tree)
-
-# print("Número de estruturas de controlo aninhadas:"+str(data["controlInside"]))
-
-#print(data["html"])
-
-# import json
-
-#print(json.dumps(data['vars'],sort_keys=True, indent=4))
-
-# print(parse_tree.pretty())
+utils.insertGraphsHTML("index.html",sdg["nodes"],sdg["edges"])

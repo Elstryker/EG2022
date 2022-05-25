@@ -8,18 +8,136 @@ global identNumber
 
 identNumber = 4
 
-def createGraph(graph, graphMap):
-    dot = graphviz.Digraph('System Dependency Graph')
 
+visitedList = [[]]
+
+def depthFirst(graph, currentVertex, visited):
+    visited.append(currentVertex)
+    for vertex in graph[currentVertex]:
+        if vertex not in visited:
+            depthFirst(graph, vertex, visited.copy())
+    if(len(visited)>1):
+        visitedList.append(visited)
+def checkVars(elems):
+    hasVars=False
+    for elem in elems:
+        if elem.isalpha() and not(elem.lower()=="False".lower()) and not(elem.lower()=="True".lower()) :
+            hasVars=True
+    return hasVars
+
+def createGraph(graph, graphMap,unreach):
+    dot = graphviz.Digraph('System Dependency Graph',strict=True)
+    
+    for (beg,currentVertex) in unreach:
+            depthFirst(graph,currentVertex,[])
+    auxVisited = visitedList
     for i,node in enumerate(graph):
         dot.node(str(i),graphMap[i])
-
+        for arrs in auxVisited:
+            if len(arrs)>0:
+                arrs = arrs[1:]
+                for i in range(len(arrs)-1):
+                    frm = arrs[i]
+                    to = arrs[i+1]
+                    dot.edge(str(frm),str(to),color="red")
+        auxVisited=[]
         for row in node:
-            dot.edge(str(i),str(row))
+            for idx,(beg,end) in enumerate(unreach):
+                
+                if(i==beg and row == end):
+                    dot.edge(str(i),str(row),color="red")
+                elif(i==end):
+                    dot.edge(str(i),str(row),color="red")
+                
 
-    dot.render("Control Flow Graph.gv",view=True)
+            dot.edge(str(i),str(row))
+                
+
+    dot.render("System Dependency Graph.gv",view=True)
 
     return dot
+
+
+def checkUnreachable(graph,graphMap):
+    aux = []
+    opDel = ">|<|>=|<=|!=|=="
+    for k in graphMap:
+        
+        if("for " in graphMap[k] or "if " in graphMap[k] or "do_while " in graphMap[k] or
+            "while " in graphMap[k]):
+            hasVars = False
+            conditions =[]
+            exp = graphMap[k]
+            exp = exp.strip()
+            fullExp = exp.split(' ', 1)[1]
+            cond = exp.split(" ")
+            func = cond[0]
+            for elems in cond[1:]:
+                elems = elems.strip()
+                elems= elems.split(" ")
+                hasVars = checkVars(elems)
+            conditions = [ele for ele in conditions if ele.strip()]
+            if hasVars:
+                sepAnd = False
+                sepOr = False
+                if "&&" in fullExp:
+                    sepAnd = True
+                elif "||" in fullExp:
+                    sepOr=True
+                if sepAnd:
+                    expToEval = fullExp.split("&&")
+                    count=0
+                    for exp in expToEval:
+                        insideVars = checkVars(exp)
+                        if(not insideVars and eval(exp)==False):
+                            count+=1
+                    if func=="if" and count>0:
+                        if(len(graph[k])>1):
+                            aux.append((k,graph[k][-1]))
+                    elif count>0:
+                        if func=="if":
+                            aux.append((k,graph[k][0]))
+                        else:
+                            for x in graph[k]:
+                                aux.append((k,x))
+                elif sepOr:
+                    expToEval = fullExp.split("||")
+                    count=0
+                    for exp in expToEval:
+                        insideVars = checkVars(exp)
+                        if(not insideVars and eval(exp)==True):
+                            count+=1
+                    if func=="if" and count>0:
+                        if(len(graph[k])>1):
+                            aux.append((k,graph[k][-1]))
+                    elif count>0:
+                        if func=="if":
+                            aux.append((k,graph[k][0]))
+                        else:
+                            for x in graph[k]:
+                                aux.append((k,x))
+
+            if not hasVars:
+                expToEval = fullExp.replace("&&","and")
+                expToEval = expToEval.replace("||","or")
+                value= eval(expToEval)
+                if func=="if" and value:
+                    if(len(graph[k])>1):
+                        aux.append((k,graph[k][-1]))
+                elif not value:
+                    if func=="if":
+                        aux.append((k,graph[k][0]))
+                    else:
+                        for x in graph[k]:
+                            aux.append((k,x))
+    return aux
+
+def mccabeComplexity(graph,graphMap):
+    numberNodes = len(graphMap)
+    numberEdges = 0
+    for conj in graph:
+        numberEdges+=len(conj)
+    return numberEdges-numberNodes+2
 
 
 class MainInterpreterSDG (Interpreter):
@@ -43,17 +161,25 @@ class MainInterpreterSDG (Interpreter):
 
         print(self.graph)
         print(self.graphMap)
+        unreach = checkUnreachable(self.graph,self.graphMap)
+        #complexity = mccabeComplexity(self.graph,self.graphMap)
         
-        graph = createGraph(self.graph, self.graphMap)
+        graph = createGraph(self.graph, self.graphMap,unreach)
         graph.save()
-
-        print(graph)
-
+        graphviz.render('dot','png','System Dependency Graph.gv')
+        #print(graph)
+        numberNodes = len(self.graphMap)
+        numberEdges = 0
+        for conj in self.graph:
+            numberEdges+=len(conj)
         output = dict()
         # Juntar o código dos vários blocos
         output["html"] = res[0]
         output["vars"] = self.variables
         output["graph"] = graph
+        output["nodes"]=numberNodes
+        output["edges"]=numberEdges
+
 
         return output
 
@@ -322,7 +448,6 @@ class MainInterpreterSDG (Interpreter):
 
         self.connectParent.pop()
 
-        self.nodeCount += 1
 
         returnCode = "while(" + bool + ") {"
         returnCode += ''.join(code)
@@ -417,12 +542,14 @@ class MainInterpreterSDG (Interpreter):
         return r
 
     def simple_bool_expr(self,tree):
-        left = self.visit(tree.children[0])
-        center = tree.children[1]
-        right = self.visit(tree.children[2])
+        r=""
+        for child in tree.children:
+            if(isinstance(child,Tree)):
+                r+=self.visit(child)+" "
+            else:
+                r+=child+" "
         
-
-        return f"{left} {center} {right}"
+        return r
 
 
     def boolexpr(self,tree):

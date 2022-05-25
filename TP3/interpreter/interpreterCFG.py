@@ -48,6 +48,7 @@ class MainInterpreterCFG (Interpreter):
 
         graph = createGraph(self.graph, self.graphMap)
         graph.save()
+        graphviz.render('dot','png','Control Flow Graph.gv')
 
         print(self.graph)
         print(self.graphMap)
@@ -473,12 +474,14 @@ class MainInterpreterCFG (Interpreter):
         return r
 
     def simple_bool_expr(self,tree):
-        left = self.visit(tree.children[0])
-        center = tree.children[1]
-        right = self.visit(tree.children[2])
+        r=""
+        for child in tree.children:
+            if(isinstance(child,Tree)):
+                r+=self.visit(child)+" "
+            else:
+                r+=child+" "
         
-
-        return f"{left} {center} {right}"
+        return r
 
 
     def boolexpr(self,tree):
