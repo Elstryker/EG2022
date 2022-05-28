@@ -12,7 +12,7 @@ str a = "1";
 
 str lol = 5;
 
-if(False && 1 < 2) {
+if(False && 3 < 2) {
     if(z < a) {
         lol = 2;
         lol = 3;
@@ -47,4 +47,4 @@ cfg = MainInterpreterCFG().visit(parse_tree)
 sdg = MainInterpreterSDG().visit(parse_tree)
 data = MainInterpreter().visit(parse_tree)
 
-utils.insertGraphsHTML("index.html",sdg["nodes"],sdg["edges"])
+utils.insertGraphsHTML("index.html",cfg["nodes"],cfg["edges"])

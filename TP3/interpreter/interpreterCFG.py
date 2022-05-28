@@ -54,11 +54,18 @@ class MainInterpreterCFG (Interpreter):
         print(self.graphMap)
         print(graph)
 
+        numberNodes = len(self.graphMap)
+        numberEdges = 0
+        for conj in self.graph:
+            numberEdges+=len(conj)
+
         output = dict()
         # Juntar o código dos vários blocos
         output["html"] = res[0]
         output["vars"] = self.variables
         output["graph"] = graph
+        output["nodes"]=numberNodes
+        output["edges"]=numberEdges
 
         return output
 

@@ -204,15 +204,16 @@ def insertGraphsHTML(html,nodes,edges):
     soup.body.append(tagCFG)
     imgCFG = soup.new_tag("img",src="Control Flow Graph.gv.png")
     soup.body.append(imgCFG)
+    tagComp =soup.new_tag("p")
+    complexidade = edges-nodes+2
+    tagComp.string = "Complexidade de McCabe<=>"+str(edges)+"-"+str(nodes)+"+2="+str(complexidade)
+    soup.body.append(tagComp)
     tagSDG =soup.new_tag("h1")
     tagSDG.string = "System Dependency Graph"
     soup.body.append(tagSDG)
     imgSDG = soup.new_tag("img",src="System Dependency Graph.gv.png")
     soup.body.append(imgSDG)
-    tagComp =soup.new_tag("p")
-    complexidade = edges-nodes+2
-    tagComp.string = "Complexidade de McCabe<=>"+str(edges)+"-"+str(nodes)+"+2="+str(complexidade)
-    soup.body.append(tagComp)
+    
     with open("index.html", "w") as file:
         file.write(str(soup))
         

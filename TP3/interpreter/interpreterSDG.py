@@ -18,10 +18,11 @@ def depthFirst(graph, currentVertex, visited):
             depthFirst(graph, vertex, visited.copy())
     if(len(visited)>1):
         visitedList.append(visited)
+
 def checkVars(elems):
     hasVars=False
     for elem in elems:
-        if elem.isalpha() and not(elem.lower()=="False".lower()) and not(elem.lower()=="True".lower()) :
+        if not hasVars and elem.isalpha() and not(elem.lower()=="False".lower()) and not(elem.lower()=="True".lower()):
             hasVars=True
     return hasVars
 
@@ -43,7 +44,6 @@ def createGraph(graph, graphMap,unreach):
         auxVisited=[]
         for row in node:
             for idx,(beg,end) in enumerate(unreach):
-                
                 if(i==beg and row == end):
                     dot.edge(str(i),str(row),color="red")
                 elif(i==end):
@@ -52,7 +52,6 @@ def createGraph(graph, graphMap,unreach):
 
             dot.edge(str(i),str(row))
                 
-
     dot.render("System Dependency Graph.gv",view=True)
 
     return dot
@@ -75,7 +74,9 @@ def checkUnreachable(graph,graphMap):
             for elems in cond[1:]:
                 elems = elems.strip()
                 elems= elems.split(" ")
-                hasVars = checkVars(elems)
+
+                hasVars = checkVars(cond[1:])
+                
             conditions = [ele for ele in conditions if ele.strip()]
             if hasVars:
                 sepAnd = False
@@ -168,17 +169,13 @@ class MainInterpreterSDG (Interpreter):
         graph.save()
         graphviz.render('dot','png','System Dependency Graph.gv')
         #print(graph)
-        numberNodes = len(self.graphMap)
-        numberEdges = 0
-        for conj in self.graph:
-            numberEdges+=len(conj)
+        
         output = dict()
         # Juntar o código dos vários blocos
         output["html"] = res[0]
         output["vars"] = self.variables
         output["graph"] = graph
-        output["nodes"]=numberNodes
-        output["edges"]=numberEdges
+        
 
 
         return output
